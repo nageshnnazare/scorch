@@ -11,13 +11,13 @@
  * custom network.  All operations are autograd-aware; calling `forward()`
  * records the necessary gradient functions automatically.
  *
- * | Class      | Formula                                                      | PyTorch equiv           |
- * |------------|--------------------------------------------------------------|-------------------------|
- * | ReLU       | \f$\max(0,x)\f$                                              | `nn.ReLU()`             |
- * | Sigmoid    | \f$\frac{1}{1+e^{-x}}\f$                                     | `nn.Sigmoid()`          |
- * | Tanh       | \f$\tanh(x)\f$                                               | `nn.Tanh()`             |
- * | LeakyReLU  | \f$\max(\alpha x,\ x),\ \alpha=0.01\f$ (default)             | `nn.LeakyReLU()`        |
- * | Softmax    | \f$\frac{e^{x_i}}{\sum_j e^{x_j}}\f$ along `dim`             | `nn.Softmax(dim=…)`     |
+ * | Class     | Formula                             | PyTorch equiv       |
+ * |-----------|-------------------------------------|---------------------|
+ * | ReLU      | \f$\max(0,x)\f$                     | `nn.ReLU()`         |
+ * | Sigmoid   | \f$\frac{1}{1+e^{-x}}\f$            | `nn.Sigmoid()`      |
+ * | Tanh      | \f$\tanh(x)\f$                      | `nn.Tanh()`         |
+ * | LeakyReLU | \f$\max(\alpha x, x)\f$ (def. 0.01) | `nn.LeakyReLU()`    |
+ * | Softmax   | \f$\frac{e^{x_i}}{\sum e^{x_j}}\f$  | `nn.Softmax(dim=…)` |
  *
  * @ingroup nn
  */
