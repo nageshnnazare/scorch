@@ -10,7 +10,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
@@ -368,4 +368,4 @@ template std::shared_ptr<Tensor<float>> mul_scalar(const std::shared_ptr<Tensor<
 template std::shared_ptr<Tensor<double>> mul_scalar(const std::shared_ptr<Tensor<double>>&, double);
 template std::shared_ptr<Tensor<int>> mul_scalar(const std::shared_ptr<Tensor<int>>&, int);
 
-}  // namespace AG
+}  // namespace scorch

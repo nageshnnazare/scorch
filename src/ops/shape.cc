@@ -9,7 +9,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape) {
@@ -209,4 +209,4 @@ template std::shared_ptr<Tensor<double>> cat(const std::vector<std::shared_ptr<T
 template std::shared_ptr<Tensor<int>> cat(const std::vector<std::shared_ptr<Tensor<int>>>&,
                                           std::size_t);
 
-}  // namespace AG
+}  // namespace scorch

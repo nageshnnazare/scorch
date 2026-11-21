@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_MATRIX_H_
-#define _AG_OPS_MATRIX_H_
+#ifndef _SCORCH_OPS_MATRIX_H_
+#define _SCORCH_OPS_MATRIX_H_
 
 /**
  * @file matrix.h
@@ -10,7 +10,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
@@ -19,6 +19,6 @@ std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x);
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_MATRIX_H_
+#endif  // !_SCORCH_OPS_MATRIX_H_

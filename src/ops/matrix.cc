@@ -9,7 +9,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
@@ -122,4 +122,4 @@ template std::shared_ptr<Tensor<float>> transpose(const std::shared_ptr<Tensor<f
 template std::shared_ptr<Tensor<double>> transpose(const std::shared_ptr<Tensor<double>>&);
 template std::shared_ptr<Tensor<int>> transpose(const std::shared_ptr<Tensor<int>>&);
 
-}  // namespace AG
+}  // namespace scorch

@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_ACTIVATION_H_
-#define _AG_OPS_ACTIVATION_H_
+#ifndef _SCORCH_OPS_ACTIVATION_H_
+#define _SCORCH_OPS_ACTIVATION_H_
 
 /**
  * @file activation.h
@@ -11,7 +11,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x);
@@ -28,6 +28,6 @@ std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_ACTIVATION_H_
+#endif  // !_SCORCH_OPS_ACTIVATION_H_

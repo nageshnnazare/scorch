@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_SHAPE_H_
-#define _AG_OPS_SHAPE_H_
+#ifndef _SCORCH_OPS_SHAPE_H_
+#define _SCORCH_OPS_SHAPE_H_
 
 /**
  * @file shape.h
@@ -14,7 +14,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape);
@@ -38,6 +38,6 @@ inline std::shared_ptr<Tensor<T>> cat(std::initializer_list<std::shared_ptr<Tens
   return cat(std::vector<std::shared_ptr<Tensor<T>>>(tensors.begin(), tensors.end()), dim);
 }
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_SHAPE_H_
+#endif  // !_SCORCH_OPS_SHAPE_H_

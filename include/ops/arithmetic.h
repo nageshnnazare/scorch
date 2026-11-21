@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_ARITHMETIC_H_
-#define _AG_OPS_ARITHMETIC_H_
+#ifndef _SCORCH_OPS_ARITHMETIC_H_
+#define _SCORCH_OPS_ARITHMETIC_H_
 
 /**
  * @file arithmetic.h
@@ -10,7 +10,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
@@ -46,6 +46,6 @@ std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T sca
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mul_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar);
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_ARITHMETIC_H_
+#endif  // !_SCORCH_OPS_ARITHMETIC_H_

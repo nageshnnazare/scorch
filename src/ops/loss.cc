@@ -10,7 +10,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mse_loss(const std::shared_ptr<Tensor<T>>& pred,
@@ -141,4 +141,4 @@ template std::shared_ptr<Tensor<float>> cross_entropy_loss(const std::shared_ptr
 template std::shared_ptr<Tensor<double>> cross_entropy_loss(const std::shared_ptr<Tensor<double>>&,
                                                             const std::shared_ptr<Tensor<int>>&);
 
-}  // namespace AG
+}  // namespace scorch

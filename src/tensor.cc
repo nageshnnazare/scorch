@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
-namespace AG {
+namespace scorch {
 
 // -----------------------------------------------------------------------------
 // Autograd Execution Context
@@ -109,7 +109,7 @@ template <TensorScalar T>
 std::shared_ptr<Tensor<T>> Tensor<T>::from(Shape shape, std::vector<T> data, bool requires_grad) {
   const std::size_t n = numel(shape);
   if (data.size() != n) {
-    throw std::invalid_argument("AG::Tensor::from — data size (" + std::to_string(data.size()) +
+    throw std::invalid_argument("scorch::Tensor::from — data size (" + std::to_string(data.size()) +
                                 ") does not match shape numel (" + std::to_string(n) + ")");
   }
 
@@ -232,4 +232,4 @@ template struct Tensor<float>;
 template struct Tensor<double>;
 template struct Tensor<int>;
 
-}  // namespace AG
+}  // namespace scorch

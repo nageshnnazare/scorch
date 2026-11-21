@@ -10,7 +10,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x) {
@@ -235,4 +235,4 @@ template std::shared_ptr<Tensor<double>> softmax(const std::shared_ptr<Tensor<do
                                                  std::size_t);
 template std::shared_ptr<Tensor<int>> softmax(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
-}  // namespace AG
+}  // namespace scorch

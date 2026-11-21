@@ -1,5 +1,5 @@
-#ifndef _AG_TENSOR_H_
-#define _AG_TENSOR_H_
+#ifndef _SCORCH_TENSOR_H_
+#define _SCORCH_TENSOR_H_
 
 /**
  * @file tensor.h
@@ -23,8 +23,8 @@
  *    +---------+---------+---------+---------+---------+---------+
  *    |  (0, 0) |  (0, 1) |  (0, 2) |  (1, 0) |  (1, 1) |  (1, 2) |
  *    +---------+---------+---------+---------+---------+---------+
- *    Flat Idx:     0         1         2         3         4         5
- *              | <------ Row 0 ------> | <------ Row 1 ------> |
+ *    FlatIdx: 0         1         2         3         4         5
+ *    |  <-------- Row 0 -------->  |  <-------- Row 1 -------->  |
  *
  * 2. Multi-dimensional Subscript Traversal (e.g., `t[1][2]`):
  *
@@ -66,7 +66,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace AG {
+namespace scorch {
 
 /**
  * @concept TensorScalar
@@ -471,6 +471,40 @@ inline std::shared_ptr<Tensor<T>> operator*(T scalar, const std::shared_ptr<Tens
   return mul_scalar(a, scalar);
 }
 
-}  // namespace AG
+// ============================================================================
+// Free-function PyTorch-style Factory API
+// ============================================================================
 
-#endif  // !_AG_TENSOR_H_
+template <typename T = float>
+inline std::shared_ptr<Tensor<T>> zeros(Shape shape, bool requires_grad = false) {
+  return Tensor<T>::zeros(std::move(shape), requires_grad);
+}
+
+template <typename T = float>
+inline std::shared_ptr<Tensor<T>> ones(Shape shape, bool requires_grad = false) {
+  return Tensor<T>::ones(std::move(shape), requires_grad);
+}
+
+template <typename T = float>
+inline std::shared_ptr<Tensor<T>> full(Shape shape, T val, bool requires_grad = false) {
+  return Tensor<T>::full(std::move(shape), val, requires_grad);
+}
+
+template <typename T = float>
+inline std::shared_ptr<Tensor<T>> rand(Shape shape, T min = static_cast<T>(0),
+                                       T max = static_cast<T>(1), bool requires_grad = false) {
+  return Tensor<T>::rand(std::move(shape), min, max, requires_grad);
+}
+
+template <typename T>
+inline std::shared_ptr<Tensor<T>> from(Shape shape, std::vector<T> data,
+                                       bool requires_grad = false) {
+  return Tensor<T>::from(std::move(shape), std::move(data), requires_grad);
+}
+
+}  // namespace scorch
+
+// Backwards-compatibility alias
+namespace AG = scorch;
+
+#endif  // !_SCORCH_TENSOR_H_

@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_LOSS_H_
-#define _AG_OPS_LOSS_H_
+#ifndef _SCORCH_OPS_LOSS_H_
+#define _SCORCH_OPS_LOSS_H_
 
 /**
  * @file loss.h
@@ -10,7 +10,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mse_loss(const std::shared_ptr<Tensor<T>>& pred,
@@ -20,6 +20,6 @@ template <TensorScalar T>
 std::shared_ptr<Tensor<T>> cross_entropy_loss(const std::shared_ptr<Tensor<T>>& logits,
                                               const std::shared_ptr<Tensor<int>>& targets);
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_LOSS_H_
+#endif  // !_SCORCH_OPS_LOSS_H_

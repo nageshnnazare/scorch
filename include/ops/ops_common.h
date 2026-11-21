@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_COMMON_H_
-#define _AG_OPS_COMMON_H_
+#ifndef _SCORCH_OPS_COMMON_H_
+#define _SCORCH_OPS_COMMON_H_
 
 /**
  * @file ops_common.h
@@ -13,7 +13,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 namespace detail {
 
 /**
@@ -39,6 +39,6 @@ inline std::shared_ptr<Tensor<T>> make_result(Shape shape, bool requires_grad, s
 }
 
 }  // namespace detail
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_COMMON_H_
+#endif  // !_SCORCH_OPS_COMMON_H_

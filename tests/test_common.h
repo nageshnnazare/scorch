@@ -1,5 +1,5 @@
-#ifndef _AG_TEST_COMMON_H_
-#define _AG_TEST_COMMON_H_
+#ifndef _SCORCH_TEST_COMMON_H_
+#define _SCORCH_TEST_COMMON_H_
 
 /**
  * @file test_common.h
@@ -47,4 +47,4 @@ inline bool register_test(const char* name, std::function<void()> fn) {
 
 #define EXPECT_NEAR(a, b, tol) EXPECT(std::fabs((a) - (b)) <= (tol))
 
-#endif  // !_AG_TEST_COMMON_H_
+#endif  // !_SCORCH_TEST_COMMON_H_

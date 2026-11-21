@@ -9,7 +9,7 @@
 
 #include "ops/ops_common.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x) {
@@ -190,4 +190,4 @@ template std::shared_ptr<Tensor<double>> sum_dim(const std::shared_ptr<Tensor<do
                                                  std::size_t);
 template std::shared_ptr<Tensor<int>> sum_dim(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
-}  // namespace AG
+}  // namespace scorch

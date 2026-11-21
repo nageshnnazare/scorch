@@ -1,5 +1,5 @@
-#ifndef _AG_TENSOR_OPS_H_
-#define _AG_TENSOR_OPS_H_
+#ifndef _SCORCH_TENSOR_OPS_H_
+#define _SCORCH_TENSOR_OPS_H_
 
 /**
  * @file tensor_ops.h
@@ -13,4 +13,4 @@
 #include "ops/reduction.h"
 #include "ops/shape.h"
 
-#endif  // !_AG_TENSOR_OPS_H_
+#endif  // !_SCORCH_TENSOR_OPS_H_

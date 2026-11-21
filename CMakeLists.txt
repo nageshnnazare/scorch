@@ -1,9 +1,9 @@
 # ==============================================================================
-# CMakeLists.txt - Build configuration for autograd_cpp
+# CMakeLists.txt - Build configuration for scorch
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-project(autograd_cpp LANGUAGES CXX)
+project(scorch LANGUAGES CXX)
 
 # Enforce C++20 standard across all targets
 set(CMAKE_CXX_STANDARD 20)
@@ -12,10 +12,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # ------------------------------------------------------------------------------
-# 1. Core Library (tensor)
+# 1. Core Library (scorch)
 # ------------------------------------------------------------------------------
 # Static library containing Tensor, TensorView, and differentiable operations
-add_library(tensor STATIC
+add_library(scorch STATIC
   src/tensor.cc
   src/ops/arithmetic.cc
   src/ops/matrix.cc
@@ -25,26 +25,30 @@ add_library(tensor STATIC
   src/ops/loss.cc
 )
 
-target_include_directories(tensor
+target_include_directories(scorch
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# Backwards compatibility alias
+add_library(tensor ALIAS scorch)
+
 # ------------------------------------------------------------------------------
-# 2. Main Executable (autograd)
+# 2. Main Executable (scorch_demo -> binary: scorch)
 # ------------------------------------------------------------------------------
 # Standalone binary demonstrating basic tensor initialization and printing.
-add_executable(autograd
+add_executable(scorch_demo
   main.cc
 )
 
-target_link_libraries(autograd
+target_link_libraries(scorch_demo
   PRIVATE
-  tensor
+  scorch
 )
 
-set_target_properties(autograd
+set_target_properties(scorch_demo
   PROPERTIES
+  OUTPUT_NAME "scorch"
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
@@ -53,7 +57,7 @@ set_target_properties(autograd
 # ------------------------------------------------------------------------------
 enable_testing()
 
-add_executable(test_tensor
+add_executable(test_scorch
   tests/test_main.cc
   tests/test_core.cc
   tests/test_ops_arithmetic.cc
@@ -64,12 +68,12 @@ add_executable(test_tensor
   tests/test_ops_loss.cc
 )
 
-target_link_libraries(test_tensor
+target_link_libraries(test_scorch
   PRIVATE
-  tensor
+  scorch
 )
 
-set_target_properties(test_tensor
+set_target_properties(test_scorch
   PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
@@ -142,14 +146,14 @@ set(TENSOR_TESTS
 )
 
 foreach(test_name IN LISTS TENSOR_TESTS)
-  add_test(NAME ${test_name} COMMAND test_tensor ${test_name})
+  add_test(NAME ${test_name} COMMAND test_scorch ${test_name})
 endforeach()
 
 # Custom convenience target to run tests with live, verbose console output:
 #   ninja check  (or make check)
 add_custom_target(check
   COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
-  DEPENDS test_tensor
+  DEPENDS test_scorch
   USES_TERMINAL
   COMMENT "Running all unit tests with full output..."
 )

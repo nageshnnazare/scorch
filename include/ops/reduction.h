@@ -1,5 +1,5 @@
-#ifndef _AG_OPS_REDUCTION_H_
-#define _AG_OPS_REDUCTION_H_
+#ifndef _SCORCH_OPS_REDUCTION_H_
+#define _SCORCH_OPS_REDUCTION_H_
 
 /**
  * @file reduction.h
@@ -11,7 +11,7 @@
 
 #include "tensor.h"
 
-namespace AG {
+namespace scorch {
 
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x);
@@ -25,6 +25,6 @@ std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
-}  // namespace AG
+}  // namespace scorch
 
-#endif  // !_AG_OPS_REDUCTION_H_
+#endif  // !_SCORCH_OPS_REDUCTION_H_
