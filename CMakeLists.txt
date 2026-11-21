@@ -30,12 +30,6 @@ add_library(scorch STATIC
   src/nn/loss.cc
   src/optim/sgd.cc
   src/optim/adam.cc
-  src/nn/linear.cc
-  src/nn/activations.cc
-  src/nn/dropout.cc
-  src/nn/loss.cc
-  src/optim/sgd.cc
-  src/optim/adam.cc
 )
 
 target_include_directories(scorch
@@ -80,7 +74,6 @@ add_executable(test_scorch
   tests/test_ops_shape.cc
   tests/test_ops_loss.cc
   tests/test_ops_trigonometric.cc
-  tests/test_nn.cc
   tests/test_nn.cc
 )
 
