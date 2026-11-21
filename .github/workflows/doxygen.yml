@@ -12,7 +12,7 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one active deployment
+# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -27,13 +27,22 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Install Doxygen
+      - name: Install Doxygen and Graphviz
         run: |
-          sudo apt-get update
+          sudo apt-get update -qq
           sudo apt-get install -y doxygen graphviz
+
+      - name: Create output directory
+        run: mkdir -p docs/doxygen
 
       - name: Run Doxygen
         run: doxygen Doxyfile
+
+      - name: Verify HTML output
+        run: |
+          echo "=== Checking generated HTML ==="
+          ls -la docs/doxygen/html/
+          test -f docs/doxygen/html/index.html && echo "index.html OK" || (echo "ERROR: index.html missing!" && exit 1)
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

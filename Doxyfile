@@ -3,13 +3,15 @@
 # Project Metadata
 PROJECT_NAME           = "scorch"
 PROJECT_NUMBER         = "0.1.0"
-PROJECT_BRIEF          = "c++ implementation of (py) torch library"
+PROJECT_BRIEF          = "C++ implementation of a PyTorch-equivalent autograd and neural network library"
+PROJECT_LOGO           =
 
 # Input Configuration
-INPUT                  = README.md src include
+INPUT                  = README.md include src
 USE_MDFILE_AS_MAINPAGE = README.md
 RECURSIVE              = YES
 FILE_PATTERNS          = *.cpp *.cc *.h *.md
+EXCLUDE_PATTERNS       = */build/* */cmake-build-*/*
 
 # Output Configuration
 OUTPUT_DIRECTORY       = docs/doxygen
@@ -21,10 +23,33 @@ GENERATE_LATEX         = NO
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = YES
 EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
 
 # UI Styling and Features
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 100
 HTML_COLORSTYLE_LIGHT  = 90
 GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
 SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+
+# Dot / Graph settings (requires graphviz)
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 4
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+
+# Cross-referencing
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Warnings
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
