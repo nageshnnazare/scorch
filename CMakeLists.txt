@@ -17,7 +17,12 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # Static library containing Tensor, TensorView, and differentiable operations
 add_library(tensor STATIC
   src/tensor.cc
-  src/tensor_ops.cc
+  src/ops/arithmetic.cc
+  src/ops/matrix.cc
+  src/ops/activation.cc
+  src/ops/reduction.cc
+  src/ops/shape.cc
+  src/ops/loss.cc
 )
 
 target_include_directories(tensor
@@ -49,7 +54,14 @@ set_target_properties(autograd
 enable_testing()
 
 add_executable(test_tensor
-  tests/test_tensor.cc
+  tests/test_main.cc
+  tests/test_core.cc
+  tests/test_ops_arithmetic.cc
+  tests/test_ops_matrix.cc
+  tests/test_ops_activation.cc
+  tests/test_ops_reduction.cc
+  tests/test_ops_shape.cc
+  tests/test_ops_loss.cc
 )
 
 target_link_libraries(test_tensor
