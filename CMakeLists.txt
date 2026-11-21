@@ -5,18 +5,19 @@
 cmake_minimum_required(VERSION 3.20)
 project(autograd_cpp LANGUAGES CXX)
 
-# Enforce C++17 standard across all targets
-set(CMAKE_CXX_STANDARD 17)
+# Enforce C++20 standard across all targets
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # ------------------------------------------------------------------------------
 # 1. Core Library (tensor)
 # ------------------------------------------------------------------------------
-# Static library containing Tensor and TensorView implementations along with
-# shape and indexing utility functions.
+# Static library containing Tensor, TensorView, and differentiable operations
 add_library(tensor STATIC
   src/tensor.cc
+  src/tensor_ops.cc
 )
 
 target_include_directories(tensor
@@ -76,6 +77,19 @@ set(TENSOR_TESTS
   requires_grad_flag
   size_and_elements
   backward_leaf
+  grad_add
+  grad_mul
+  grad_matmul
+  grad_relu
+  grad_transpose
+  grad_reduce
+  grad_dag_chain
+  grad_diamond_graph
+  grad_no_grad_operand
+  operator_add
+  operator_mul
+  operator_expression_pipeline
+  concept_tensor_scalar
 )
 
 foreach(test_name IN LISTS TENSOR_TESTS)

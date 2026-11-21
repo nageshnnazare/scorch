@@ -16,6 +16,14 @@
 namespace AG {
 
 // -----------------------------------------------------------------------------
+// Autograd Execution Context
+// -----------------------------------------------------------------------------
+
+static thread_local void* g_current_backward_tensor = nullptr;
+
+void* get_current_backward_tensor() { return g_current_backward_tensor; }
+
+// -----------------------------------------------------------------------------
 // Shape Utility Functions
 // -----------------------------------------------------------------------------
 
@@ -38,14 +46,14 @@ std::size_t flatid(const Shape& shape, const std::vector<std::size_t>& coords) {
 // Tensor Subscript Operators
 // -----------------------------------------------------------------------------
 
-template <typename T>
+template <TensorScalar T>
 TensorView<T> Tensor<T>::operator[](std::size_t i) {
   std::size_t stride = 1;
   for (std::size_t d = 1; d < shape.size(); ++d) stride *= shape[d];
   return {data.data(), &shape, 1, i * stride};
 }
 
-template <typename T>
+template <TensorScalar T>
 const TensorView<const T> Tensor<T>::operator[](std::size_t i) const {
   std::size_t stride = 1;
   for (std::size_t d = 1; d < shape.size(); ++d) stride *= shape[d];
@@ -56,7 +64,7 @@ const TensorView<const T> Tensor<T>::operator[](std::size_t i) const {
 // Tensor Factory Methods
 // -----------------------------------------------------------------------------
 
-template <typename T>
+template <TensorScalar T>
 Tensor<T> Tensor<T>::full(Shape shape, T fill_value, bool requires_grad) {
   Tensor<T> t;
   t.shape = std::move(shape);
@@ -68,17 +76,17 @@ Tensor<T> Tensor<T>::full(Shape shape, T fill_value, bool requires_grad) {
   return t;
 }
 
-template <typename T>
+template <TensorScalar T>
 Tensor<T> Tensor<T>::zeros(Shape shape, bool requires_grad) {
   return full(std::move(shape), T(0), requires_grad);
 }
 
-template <typename T>
+template <TensorScalar T>
 Tensor<T> Tensor<T>::ones(Shape shape, bool requires_grad) {
   return full(std::move(shape), T(1), requires_grad);
 }
 
-template <typename T>
+template <TensorScalar T>
 Tensor<T> Tensor<T>::rand(Shape shape, bool requires_grad) {
   Tensor<T> t;
   t.shape = std::move(shape);
@@ -97,7 +105,7 @@ Tensor<T> Tensor<T>::rand(Shape shape, bool requires_grad) {
   return t;
 }
 
-template <typename T>
+template <TensorScalar T>
 Tensor<T> Tensor<T>::from(Shape shape, std::vector<T> data, bool requires_grad) {
   const std::size_t n = numel(shape);
   if (data.size() != n) {
@@ -119,14 +127,14 @@ Tensor<T> Tensor<T>::from(Shape shape, std::vector<T> data, bool requires_grad) 
 // Autograd & Backward Graph Traversal
 // -----------------------------------------------------------------------------
 
-template <typename T>
+template <TensorScalar T>
 void Tensor<T>::zero_grad() {
   if (!grad.empty()) {
     std::fill(grad.begin(), grad.end(), 0.f);
   }
 }
 
-template <typename T>
+template <TensorScalar T>
 void Tensor<T>::backward() {
   if (grad.size() != data.size()) {
     grad.assign(data.size(), 0.f);
@@ -158,7 +166,9 @@ void Tensor<T>::backward() {
   for (auto it = order.rbegin(); it != order.rend(); ++it) {
     Tensor* t = *it;
     if (t->backward_fn) {
+      g_current_backward_tensor = t;
       t->backward_fn();
+      g_current_backward_tensor = nullptr;
     }
   }
 }
@@ -167,7 +177,7 @@ void Tensor<T>::backward() {
 // Formatting & Pretty Printing
 // -----------------------------------------------------------------------------
 
-template <typename T>
+template <TensorScalar T>
 void Tensor<T>::print(const char* name) const {
   std::size_t indent = std::strlen(name) + 1;
   std::string pad(indent, ' ');
@@ -183,7 +193,7 @@ void Tensor<T>::print(const char* name) const {
   std::printf("\n");
 }
 
-template <typename T>
+template <TensorScalar T>
 void Tensor<T>::print_dim(int dim, std::size_t offset, const char* base_indent) const {
   if (dim == static_cast<int>(shape.size())) {
     std::printf("%.6g", static_cast<double>(data[offset]));
