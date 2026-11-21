@@ -397,7 +397,8 @@ struct Tensor : public std::enable_shared_from_this<Tensor<T>> {
   static std::shared_ptr<Tensor<T>> full(Shape shape, T fill_value, bool requires_grad = false);
   static std::shared_ptr<Tensor<T>> zeros(Shape shape, bool requires_grad = false);
   static std::shared_ptr<Tensor<T>> ones(Shape shape, bool requires_grad = false);
-  static std::shared_ptr<Tensor<T>> rand(Shape shape, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> rand(Shape shape, T min = T(0), T max = T(1),
+                                         bool requires_grad = false);
   static std::shared_ptr<Tensor<T>> from(Shape shape, std::vector<T> data,
                                          bool requires_grad = false);
 
@@ -496,7 +497,13 @@ inline std::shared_ptr<Tensor<T>> rand(Shape shape, T min = static_cast<T>(0),
   return Tensor<T>::rand(std::move(shape), min, max, requires_grad);
 }
 
-template <typename T>
+template <typename T = float>
+inline std::shared_ptr<Tensor<T>> from(Shape shape, std::initializer_list<T> data,
+                                       bool requires_grad = false) {
+  return Tensor<T>::from(std::move(shape), std::vector<T>(data), requires_grad);
+}
+
+template <typename T = float>
 inline std::shared_ptr<Tensor<T>> from(Shape shape, std::vector<T> data,
                                        bool requires_grad = false) {
   return Tensor<T>::from(std::move(shape), std::move(data), requires_grad);

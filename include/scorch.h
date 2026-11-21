@@ -6,6 +6,8 @@
  * @brief Main umbrella header for the scorch library, mirroring PyTorch's torch/torch.h.
  */
 
+#include "nn/nn.h"
+#include "optim/optim.h"
 #include "tensor.h"
 #include "tensor_ops.h"
 

@@ -23,6 +23,19 @@ add_library(scorch STATIC
   src/ops/reduction.cc
   src/ops/shape.cc
   src/ops/loss.cc
+  src/ops/trigonometric.cc
+  src/nn/linear.cc
+  src/nn/activations.cc
+  src/nn/dropout.cc
+  src/nn/loss.cc
+  src/optim/sgd.cc
+  src/optim/adam.cc
+  src/nn/linear.cc
+  src/nn/activations.cc
+  src/nn/dropout.cc
+  src/nn/loss.cc
+  src/optim/sgd.cc
+  src/optim/adam.cc
 )
 
 target_include_directories(scorch
@@ -66,6 +79,9 @@ add_executable(test_scorch
   tests/test_ops_reduction.cc
   tests/test_ops_shape.cc
   tests/test_ops_loss.cc
+  tests/test_ops_trigonometric.cc
+  tests/test_nn.cc
+  tests/test_nn.cc
 )
 
 target_link_libraries(test_scorch
@@ -143,6 +159,33 @@ set(TENSOR_TESTS
   operator_div
   operator_add_scalar
   operator_mul_scalar
+  # NEW: Trigonometric & Advanced Math
+  grad_sin
+  grad_cos
+  grad_tan
+  grad_asin
+  grad_acos
+  grad_atan
+  grad_sinh
+  grad_cosh
+  grad_tanh_alias
+  grad_loge
+  grad_log2
+  grad_log10
+  grad_sqrt
+  grad_rsqrt
+  grad_abs
+  # NEW: Neural Network & Optimizers
+  nn_linear_forward_shape
+  nn_linear_1d_input
+  nn_linear_gradients
+  nn_module_parameters
+  nn_sequential_pipeline
+  nn_dropout_eval_mode
+  nn_loss_modules
+  optim_sgd_step
+  optim_adam_step
+  nn_end_to_end_training
 )
 
 foreach(test_name IN LISTS TENSOR_TESTS)

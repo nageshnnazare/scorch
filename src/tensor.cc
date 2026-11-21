@@ -87,7 +87,7 @@ std::shared_ptr<Tensor<T>> Tensor<T>::ones(Shape shape, bool requires_grad) {
 }
 
 template <TensorScalar T>
-std::shared_ptr<Tensor<T>> Tensor<T>::rand(Shape shape, bool requires_grad) {
+std::shared_ptr<Tensor<T>> Tensor<T>::rand(Shape shape, T min, T max, bool requires_grad) {
   auto t = std::make_shared<Tensor<T>>();
   t->shape = std::move(shape);
   t->data.resize(numel(t->shape));
@@ -96,9 +96,9 @@ std::shared_ptr<Tensor<T>> Tensor<T>::rand(Shape shape, bool requires_grad) {
     t->grad.assign(t->data.size(), 0.f);
   }
 
-  // Thread-local pseudo-random number generator for uniform distribution in [0, 1)
+  // Thread-local pseudo-random number generator for uniform distribution in [min, max)
   thread_local std::mt19937 rng{std::random_device{}()};
-  std::uniform_real_distribution<double> dist(0.0, 1.0);
+  std::uniform_real_distribution<double> dist(static_cast<double>(min), static_cast<double>(max));
 
   for (auto& v : t->data) v = static_cast<T>(dist(rng));
 

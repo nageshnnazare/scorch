@@ -15,35 +15,92 @@ namespace scorch {
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
                                const std::shared_ptr<Tensor<T>>& b) {
-  if (a->shape != b->shape) {
+  bool same_shape = (a->shape == b->shape);
+  bool a_is_2d_b_row = (a->shape.size() == 2 &&
+                        (b->shape == Shape{1, a->shape[1]} || b->shape == Shape{a->shape[1]}));
+  bool b_is_2d_a_row = (b->shape.size() == 2 &&
+                        (a->shape == Shape{1, b->shape[1]} || a->shape == Shape{b->shape[1]}));
+
+  if (!same_shape && !a_is_2d_b_row && !b_is_2d_a_row) {
     throw std::invalid_argument("add: shape mismatch");
   }
 
   bool rg = a->requires_grad || b->requires_grad;
-  auto out = detail::make_result<T>(a->shape, rg, "add", {a, b});
 
-  for (std::size_t i = 0; i < out->data.size(); ++i) {
-    out->data[i] = a->data[i] + b->data[i];
+  if (same_shape) {
+    auto out = detail::make_result<T>(a->shape, rg, "add", {a, b});
+    for (std::size_t i = 0; i < out->data.size(); ++i) {
+      out->data[i] = a->data[i] + b->data[i];
+    }
+    if (rg) {
+      out->backward_fn = [a, b]() {
+        auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
+        if (!self) return;
+        detail::ensure_grad(*a);
+        detail::ensure_grad(*b);
+
+        for (std::size_t i = 0; i < self->grad.size(); ++i) {
+          if (a->requires_grad) a->grad[i] += self->grad[i];
+          if (b->requires_grad) b->grad[i] += self->grad[i];
+        }
+      };
+    }
+    return out;
   }
 
+  if (a_is_2d_b_row) {
+    std::size_t m = a->shape[0];
+    std::size_t n = a->shape[1];
+    auto out = detail::make_result<T>(a->shape, rg, "add", {a, b});
+    for (std::size_t i = 0; i < m; ++i) {
+      for (std::size_t j = 0; j < n; ++j) {
+        out->data[i * n + j] = a->data[i * n + j] + b->data[j];
+      }
+    }
+    if (rg) {
+      out->backward_fn = [a, b, m, n]() {
+        auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
+        if (!self) return;
+        detail::ensure_grad(*a);
+        detail::ensure_grad(*b);
+
+        for (std::size_t i = 0; i < m; ++i) {
+          for (std::size_t j = 0; j < n; ++j) {
+            float g = self->grad[i * n + j];
+            if (a->requires_grad) a->grad[i * n + j] += g;
+            if (b->requires_grad) b->grad[j] += g;
+          }
+        }
+      };
+    }
+    return out;
+  }
+
+  // b_is_2d_a_row
+  std::size_t m = b->shape[0];
+  std::size_t n = b->shape[1];
+  auto out = detail::make_result<T>(b->shape, rg, "add", {a, b});
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+      out->data[i * n + j] = a->data[j] + b->data[i * n + j];
+    }
+  }
   if (rg) {
-    out->backward_fn = [a, b]() {
+    out->backward_fn = [a, b, m, n]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*a);
       detail::ensure_grad(*b);
 
-      for (std::size_t i = 0; i < self->grad.size(); ++i) {
-        if (a->requires_grad) {
-          a->grad[i] += self->grad[i];
-        }
-        if (b->requires_grad) {
-          b->grad[i] += self->grad[i];
+      for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+          float g = self->grad[i * n + j];
+          if (a->requires_grad) a->grad[j] += g;
+          if (b->requires_grad) b->grad[i * n + j] += g;
         }
       }
     };
   }
-
   return out;
 }
 

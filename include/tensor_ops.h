@@ -12,5 +12,6 @@
 #include "ops/matrix.h"
 #include "ops/reduction.h"
 #include "ops/shape.h"
+#include "ops/trigonometric.h"
 
 #endif  // !_SCORCH_TENSOR_OPS_H_
