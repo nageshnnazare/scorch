@@ -1,6 +1,19 @@
 /**
  * @file arithmetic.cc
  * @brief Implementation of element-wise arithmetic and scalar operations.
+ *
+ * @details
+ * Implements element-wise and scalar arithmetic operations with autograd backward support:
+ * - `add`: Element-wise and row-broadcast tensor addition
+ * - `sub`: Element-wise subtraction
+ * - `mul`: Element-wise Hadamard multiplication
+ * - `div`: Element-wise division
+ * - `neg`: Element-wise negation
+ * - `pow`: Element-wise exponentiation with scalar power
+ * - `exp`: Natural exponential
+ * - `log`: Natural logarithm
+ * - `add_scalar`: Scalar offset
+ * - `mul_scalar`: Scalar scaling
  */
 
 #include "ops/arithmetic.h"
@@ -12,6 +25,13 @@
 
 namespace scorch {
 
+/**
+ * @brief Differentiable element-wise or row-broadcast addition.
+ * @param a First operand tensor.
+ * @param b Second operand tensor.
+ * @return Sum tensor.
+ * @throws std::invalid_argument If shapes do not match or broadcast.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
                                const std::shared_ptr<Tensor<T>>& b) {
@@ -104,6 +124,13 @@ std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
   return out;
 }
 
+/**
+ * @brief Differentiable element-wise subtraction.
+ * @param a Minuend tensor.
+ * @param b Subtrahend tensor.
+ * @return Difference tensor.
+ * @throws std::invalid_argument If shapes do not match.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sub(const std::shared_ptr<Tensor<T>>& a,
                                const std::shared_ptr<Tensor<T>>& b) {
@@ -139,6 +166,13 @@ std::shared_ptr<Tensor<T>> sub(const std::shared_ptr<Tensor<T>>& a,
   return out;
 }
 
+/**
+ * @brief Differentiable element-wise Hadamard multiplication.
+ * @param a First operand tensor.
+ * @param b Second operand tensor.
+ * @return Element-wise product tensor.
+ * @throws std::invalid_argument If shapes do not match.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mul(const std::shared_ptr<Tensor<T>>& a,
                                const std::shared_ptr<Tensor<T>>& b) {
@@ -174,6 +208,13 @@ std::shared_ptr<Tensor<T>> mul(const std::shared_ptr<Tensor<T>>& a,
   return out;
 }
 
+/**
+ * @brief Differentiable element-wise division.
+ * @param a Numerator tensor.
+ * @param b Denominator tensor.
+ * @return Element-wise quotient tensor.
+ * @throws std::invalid_argument If shapes do not match.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> div(const std::shared_ptr<Tensor<T>>& a,
                                const std::shared_ptr<Tensor<T>>& b) {
@@ -211,6 +252,11 @@ std::shared_ptr<Tensor<T>> div(const std::shared_ptr<Tensor<T>>& a,
   return out;
 }
 
+/**
+ * @brief Differentiable unary negation.
+ * @param x Input tensor.
+ * @return Negated tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> neg(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -237,6 +283,12 @@ std::shared_ptr<Tensor<T>> neg(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable element-wise power function.
+ * @param x Base tensor.
+ * @param exponent Power exponent.
+ * @return Result tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> pow(const std::shared_ptr<Tensor<T>>& x, T exponent) {
   bool rg = x->requires_grad;
@@ -266,6 +318,11 @@ std::shared_ptr<Tensor<T>> pow(const std::shared_ptr<Tensor<T>>& x, T exponent) 
   return out;
 }
 
+/**
+ * @brief Differentiable natural exponential function.
+ * @param x Input tensor.
+ * @return Exponential tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> exp(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -293,6 +350,11 @@ std::shared_ptr<Tensor<T>> exp(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable natural logarithm function.
+ * @param x Input tensor.
+ * @return Logarithm tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> log(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -319,6 +381,12 @@ std::shared_ptr<Tensor<T>> log(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable scalar addition offset.
+ * @param x Input tensor.
+ * @param scalar Constant scalar value added to each element.
+ * @return Result tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar) {
   bool rg = x->requires_grad;
@@ -345,6 +413,12 @@ std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T sca
   return out;
 }
 
+/**
+ * @brief Differentiable scalar multiplication scaling.
+ * @param x Input tensor.
+ * @param scalar Multiplier scalar.
+ * @return Scaled tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mul_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar) {
   bool rg = x->requires_grad;

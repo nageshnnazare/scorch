@@ -1,10 +1,21 @@
 /**
  * @file test_core.cc
  * @brief Unit tests for core Tensor construction, indexing, and DAG traversal.
+ *
+ * @details
+ * Validates:
+ * - Tensor allocation factories (`zeros`, `ones`, `full`, `rand`, `from`).
+ * - Multidimensional bracket indexing and element mutation (`t[i][j]`).
+ * - Shape calculation utilities (`numel`, `flatid`).
+ * - Backward gradient propagation across sequential chains and diamond graphs.
+ * - C++20 `TensorScalar` concept constraints.
  */
 
 #include "test_common.h"
 
+/**
+ * @brief Tests shape and element count for zeros factory.
+ */
 TEST(zeros_shape) {
   auto t = scorch::Tensor<float>::zeros({3, 5});
   EXPECT(t->shape.size() == 2);
@@ -13,21 +24,33 @@ TEST(zeros_shape) {
   EXPECT(t->data.size() == 15);
 }
 
+/**
+ * @brief Tests all values are initialized to 0 in zeros factory.
+ */
 TEST(zeros_values) {
   auto t = scorch::Tensor<float>::zeros({2, 4});
   for (auto v : t->data) EXPECT_NEAR(v, 0.f, 1e-9f);
 }
 
+/**
+ * @brief Tests all values are initialized to 1 in ones factory.
+ */
 TEST(ones_values) {
   auto t = scorch::Tensor<float>::ones({2, 3});
   for (auto v : t->data) EXPECT_NEAR(v, 1.f, 1e-9f);
 }
 
+/**
+ * @brief Tests all values are initialized to the requested constant in full factory.
+ */
 TEST(full_values) {
   auto t = scorch::Tensor<float>::full({3, 3}, 7.f);
   for (auto v : t->data) EXPECT_NEAR(v, 7.f, 1e-9f);
 }
 
+/**
+ * @brief Tests that rand generates values strictly within [0, 1).
+ */
 TEST(rand_range) {
   auto t = scorch::Tensor<float>::rand({10, 10});
   for (auto v : t->data) {
@@ -36,6 +59,9 @@ TEST(rand_range) {
   }
 }
 
+/**
+ * @brief Tests initialization from existing std::vector buffer.
+ */
 TEST(from_happy) {
   auto t = scorch::Tensor<float>::from({2, 3}, {1, 2, 3, 4, 5, 6});
   EXPECT(t->shape[0] == 2 && t->shape[1] == 3);
@@ -43,6 +69,9 @@ TEST(from_happy) {
   EXPECT_NEAR(t->data[5], 6.f, 1e-9f);
 }
 
+/**
+ * @brief Tests that from throws invalid_argument when buffer size != numel(shape).
+ */
 TEST(from_mismatch_throws) {
   bool threw = false;
   try {
@@ -53,6 +82,9 @@ TEST(from_mismatch_throws) {
   EXPECT(threw);
 }
 
+/**
+ * @brief Tests multidimensional bracket indexing for reading elements.
+ */
 TEST(indexing_read) {
   auto t = scorch::Tensor<float>::from({2, 3}, {1, 2, 3, 4, 5, 6});
   EXPECT_NEAR(static_cast<float>((*t)[0][0]), 1.f, 1e-9f);
@@ -61,6 +93,9 @@ TEST(indexing_read) {
   EXPECT_NEAR(static_cast<float>((*t)[1][2]), 6.f, 1e-9f);
 }
 
+/**
+ * @brief Tests multidimensional bracket indexing for writing elements.
+ */
 TEST(indexing_write) {
   auto t = scorch::Tensor<float>::zeros({2, 3});
   (*t)[1][2] = 42.f;
@@ -68,6 +103,9 @@ TEST(indexing_write) {
   EXPECT_NEAR(static_cast<float>((*t)[1][1]), 0.f, 1e-9f);
 }
 
+/**
+ * @brief Tests requires_grad property setting on tensors.
+ */
 TEST(requires_grad_flag) {
   auto a = scorch::Tensor<float>::zeros({2}, /*requires_grad=*/true);
   auto b = scorch::Tensor<float>::zeros({2}, /*requires_grad=*/false);
@@ -75,6 +113,9 @@ TEST(requires_grad_flag) {
   EXPECT(b->requires_grad == false);
 }
 
+/**
+ * @brief Tests numel and flatid index mapping calculations.
+ */
 TEST(size_and_elements) {
   scorch::Shape shape{2, 3};
   auto t = scorch::Tensor<float>::from(shape, {1, 2, 3, 4, 5, 6});
@@ -83,6 +124,9 @@ TEST(size_and_elements) {
   EXPECT(t->data[scorch::flatid(shape, {1, 2})] == 6);
 }
 
+/**
+ * @brief Tests calling backward directly on a leaf tensor seeds gradient 1.0.
+ */
 TEST(backward_leaf) {
   auto t = scorch::Tensor<float>::zeros({2, 3}, /*requires_grad=*/true);
   t->backward();
@@ -90,6 +134,9 @@ TEST(backward_leaf) {
   for (auto g : t->grad) EXPECT_NEAR(g, 1.f, 1e-9f);
 }
 
+/**
+ * @brief Tests reverse autodiff through a chained DAG (d = (a + b) * a).
+ */
 TEST(grad_dag_chain) {
   auto a = scorch::Tensor<float>::full({1}, 2.f, /*requires_grad=*/true);
   auto b = scorch::Tensor<float>::full({1}, 3.f, /*requires_grad=*/true);
@@ -102,6 +149,9 @@ TEST(grad_dag_chain) {
   EXPECT_NEAR(b->grad[0], 2.f, 1e-9f);
 }
 
+/**
+ * @brief Tests gradient accumulation in diamond graph topology (y = x * x).
+ */
 TEST(grad_diamond_graph) {
   auto x = scorch::Tensor<float>::full({1}, 3.f, /*requires_grad=*/true);
   auto y = scorch::mul(x, x);
@@ -111,6 +161,9 @@ TEST(grad_diamond_graph) {
   EXPECT_NEAR(x->grad[0], 6.f, 1e-9f);
 }
 
+/**
+ * @brief Tests gradient propagation when one operand does not require grad.
+ */
 TEST(grad_no_grad_operand) {
   auto a = scorch::Tensor<float>::from({2}, {2.f, 3.f}, /*requires_grad=*/true);
   auto b = scorch::Tensor<float>::from({2}, {4.f, 5.f}, /*requires_grad=*/false);
@@ -122,6 +175,9 @@ TEST(grad_no_grad_operand) {
   EXPECT(b->grad.empty());
 }
 
+/**
+ * @brief Tests C++20 TensorScalar concept constraints at compile time.
+ */
 TEST(concept_tensor_scalar) {
   static_assert(scorch::TensorScalar<float>);
   static_assert(scorch::TensorScalar<const float>);

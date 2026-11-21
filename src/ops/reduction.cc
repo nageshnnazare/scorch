@@ -1,6 +1,13 @@
 /**
  * @file reduction.cc
  * @brief Implementation of reduction operations: sum, mean, max, sum_dim.
+ *
+ * @details
+ * Defines differentiable tensor reductions:
+ * - `reduce`: Full sum across all elements.
+ * - `mean`: Global arithmetic mean.
+ * - `max`: Global maximum element extraction.
+ * - `sum_dim`: Dimension-wise sum reduction along a specified axis.
  */
 
 #include "ops/reduction.h"
@@ -11,6 +18,11 @@
 
 namespace scorch {
 
+/**
+ * @brief Computes the sum of all elements in the tensor.
+ * @param x Input tensor.
+ * @return 1-element scalar sum tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -40,6 +52,11 @@ std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Computes the arithmetic mean of all elements in the tensor.
+ * @param x Input tensor.
+ * @return 1-element scalar mean tensor.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> mean(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -70,6 +87,12 @@ std::shared_ptr<Tensor<T>> mean(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Computes the maximum value across all elements in the tensor.
+ * @param x Input tensor.
+ * @return 1-element scalar maximum tensor.
+ * @throws std::invalid_argument If tensor is empty.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x) {
   if (x->data.empty()) {
@@ -105,6 +128,13 @@ std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Computes the sum along a specified dimension for rank-2 tensors.
+ * @param x Input 2D tensor.
+ * @param dim Dimension to reduce (0 for column sum, 1 for row sum).
+ * @return Reduced 2D tensor of shape {1, cols} or {rows, 1}.
+ * @throws std::invalid_argument If x is not rank-2 or dim > 1.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
   if (x->shape.size() != 2) {
@@ -172,7 +202,7 @@ std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::siz
   return out;
 }
 
-// Explicit Instantiations
+// Explicit template instantiations
 template std::shared_ptr<Tensor<float>> reduce(const std::shared_ptr<Tensor<float>>&);
 template std::shared_ptr<Tensor<double>> reduce(const std::shared_ptr<Tensor<double>>&);
 template std::shared_ptr<Tensor<int>> reduce(const std::shared_ptr<Tensor<int>>&);

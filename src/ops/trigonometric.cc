@@ -1,6 +1,14 @@
 /**
  * @file trigonometric.cc
  * @brief Implementation of differentiable trigonometric and mathematical operations.
+ *
+ * @details
+ * Defines element-wise mathematical functions and their derivative rules:
+ * - Circular trigonometric: sin, cos, tan
+ * - Inverse trigonometric: asin, acos, atan
+ * - Hyperbolic: sinh, cosh
+ * - Logarithms: log2, log10
+ * - Roots & magnitude: sqrt, rsqrt, abs
  */
 
 #include "ops/trigonometric.h"
@@ -15,6 +23,12 @@ namespace scorch {
 // -----------------------------------------------------------------------------
 // sin(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise sine function with autograd backward (cos).
+ * @param x Input tensor.
+ * @return Tensor of sine values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sin(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -46,6 +60,12 @@ std::shared_ptr<Tensor<T>> sin(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // cos(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise cosine function with autograd backward (-sin).
+ * @param x Input tensor.
+ * @return Tensor of cosine values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> cos(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -77,6 +97,12 @@ std::shared_ptr<Tensor<T>> cos(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // tan(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise tangent function with autograd backward (1 / cos^2).
+ * @param x Input tensor.
+ * @return Tensor of tangent values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> tan(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -108,6 +134,12 @@ std::shared_ptr<Tensor<T>> tan(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // asin(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise inverse sine (arcsin) with autograd backward (1 / sqrt(1 - x^2)).
+ * @param x Input tensor.
+ * @return Tensor of arcsine values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> asin(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -140,6 +172,12 @@ std::shared_ptr<Tensor<T>> asin(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // acos(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise inverse cosine (arccos) with autograd backward (-1 / sqrt(1 - x^2)).
+ * @param x Input tensor.
+ * @return Tensor of arccosine values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> acos(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -172,6 +210,12 @@ std::shared_ptr<Tensor<T>> acos(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // atan(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise inverse tangent (arctan) with autograd backward (1 / (1 + x^2)).
+ * @param x Input tensor.
+ * @return Tensor of arctangent values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> atan(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -203,6 +247,12 @@ std::shared_ptr<Tensor<T>> atan(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // sinh(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise hyperbolic sine with autograd backward (cosh).
+ * @param x Input tensor.
+ * @return Tensor of sinh values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sinh(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -234,6 +284,12 @@ std::shared_ptr<Tensor<T>> sinh(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // cosh(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise hyperbolic cosine with autograd backward (sinh).
+ * @param x Input tensor.
+ * @return Tensor of cosh values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> cosh(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -265,6 +321,12 @@ std::shared_ptr<Tensor<T>> cosh(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // log2(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise base-2 logarithm with autograd backward (1 / (x * ln(2))).
+ * @param x Input tensor.
+ * @return Tensor of log2 values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> log2(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -296,6 +358,12 @@ std::shared_ptr<Tensor<T>> log2(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // log10(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise base-10 logarithm with autograd backward (1 / (x * ln(10))).
+ * @param x Input tensor.
+ * @return Tensor of log10 values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> log10(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -327,6 +395,12 @@ std::shared_ptr<Tensor<T>> log10(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // sqrt(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise square root with autograd backward (1 / (2 * sqrt(x))).
+ * @param x Input tensor.
+ * @return Tensor of square root values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sqrt(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -357,6 +431,12 @@ std::shared_ptr<Tensor<T>> sqrt(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // rsqrt(x): 1 / sqrt(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise reciprocal square root with autograd backward (-1 / (2 * x^(3/2))).
+ * @param x Input tensor.
+ * @return Tensor of rsqrt values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> rsqrt(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -389,6 +469,12 @@ std::shared_ptr<Tensor<T>> rsqrt(const std::shared_ptr<Tensor<T>>& x) {
 // -----------------------------------------------------------------------------
 // abs(x)
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Element-wise absolute value with autograd backward (sgn(x)).
+ * @param x Input tensor.
+ * @return Tensor of absolute values.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> abs(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;

@@ -394,11 +394,50 @@ struct Tensor : public std::enable_shared_from_this<Tensor<T>> {
   // Factory Methods (Returning std::shared_ptr<Tensor<T>>)
   // ---------------------------------------------------------------------------
 
+  /**
+   * @brief Construct a tensor filled with a constant scalar value.
+   * @param shape Dimensions of the target tensor.
+   * @param fill_value Constant value to fill all elements with.
+   * @param requires_grad Whether the tensor tracks gradients for autograd.
+   * @return Shared pointer to newly created tensor.
+   */
   static std::shared_ptr<Tensor<T>> full(Shape shape, T fill_value, bool requires_grad = false);
+
+  /**
+   * @brief Construct a tensor filled with zeros.
+   * @param shape Dimensions of the target tensor.
+   * @param requires_grad Whether the tensor tracks gradients for autograd.
+   * @return Shared pointer to newly created tensor.
+   */
   static std::shared_ptr<Tensor<T>> zeros(Shape shape, bool requires_grad = false);
+
+  /**
+   * @brief Construct a tensor filled with ones.
+   * @param shape Dimensions of the target tensor.
+   * @param requires_grad Whether the tensor tracks gradients for autograd.
+   * @return Shared pointer to newly created tensor.
+   */
   static std::shared_ptr<Tensor<T>> ones(Shape shape, bool requires_grad = false);
+
+  /**
+   * @brief Construct a tensor filled with uniform random values in range `[min, max)`.
+   * @param shape Dimensions of the target tensor.
+   * @param min Minimum boundary of uniform distribution (inclusive).
+   * @param max Maximum boundary of uniform distribution (exclusive).
+   * @param requires_grad Whether the tensor tracks gradients for autograd.
+   * @return Shared pointer to newly created tensor.
+   */
   static std::shared_ptr<Tensor<T>> rand(Shape shape, T min = T(0), T max = T(1),
                                          bool requires_grad = false);
+
+  /**
+   * @brief Construct a tensor from an existing flat data buffer.
+   * @param shape Dimensions of the target tensor.
+   * @param data Vector containing element values in row-major layout.
+   * @param requires_grad Whether the tensor tracks gradients for autograd.
+   * @return Shared pointer to newly created tensor.
+   * @throws std::invalid_argument If data.size() != numel(shape).
+   */
   static std::shared_ptr<Tensor<T>> from(Shape shape, std::vector<T> data,
                                          bool requires_grad = false);
 
@@ -406,13 +445,27 @@ struct Tensor : public std::enable_shared_from_this<Tensor<T>> {
   // Autograd
   // ---------------------------------------------------------------------------
 
+  /**
+   * @brief Resets gradient buffer to zeros.
+   */
   void zero_grad();
+
+  /**
+   * @brief Computes the gradient of current tensor with respect to graph leaves.
+   *
+   * Traverses the computation graph in reverse topological order, calling each
+   * parent's backward closure to accumulate gradients into leaf parameters.
+   */
   void backward();
 
   // ---------------------------------------------------------------------------
   // Formatting
   // ---------------------------------------------------------------------------
 
+  /**
+   * @brief Pretty-print tensor contents, shape, and gradient flag to standard output.
+   * @param name Optional label printed as prefix.
+   */
   void print(const char* name = "") const;
 
  private:

@@ -1,6 +1,19 @@
 /**
  * @file sgd.cc
  * @brief Implementation of Stochastic Gradient Descent optimizer.
+ *
+ * @details
+ * Performs in-place parameter updates with optional momentum buffer tracking
+ * and L2 weight decay regularisation:
+ * \f[
+ *   g_t \leftarrow g_t + \lambda \theta_t
+ * \f]
+ * \f[
+ *   v_t \leftarrow \mu v_{t-1} + g_t
+ * \f]
+ * \f[
+ *   \theta_t \leftarrow \theta_{t-1} - \gamma v_t
+ * \f]
  */
 
 #include "optim/sgd.h"

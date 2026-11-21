@@ -1,6 +1,14 @@
 /**
  * @file shape.cc
  * @brief Implementation of shape and view manipulations: reshape, flatten, squeeze, unsqueeze, cat.
+ *
+ * @details
+ * Defines differentiable tensor transformations:
+ * - `reshape`: View or change dimension extents preserving total element count.
+ * - `flatten`: Flatten multidimensional tensor into a 1-D vector.
+ * - `squeeze`: Remove a singleton dimension (size 1).
+ * - `unsqueeze`: Insert a singleton dimension at specified axis.
+ * - `cat`: Concatenate multiple tensors along an existing axis.
  */
 
 #include "ops/shape.h"
@@ -11,6 +19,13 @@
 
 namespace scorch {
 
+/**
+ * @brief Reshapes a tensor to a new shape of equal numel.
+ * @param x Input tensor.
+ * @param new_shape Target shape dimensions.
+ * @return Tensor with updated shape.
+ * @throws std::invalid_argument If numel(new_shape) != numel(x->shape).
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape) {
   if (numel(new_shape) != numel(x->shape)) {
@@ -41,11 +56,23 @@ std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape ne
   return out;
 }
 
+/**
+ * @brief Flattens a tensor into a 1-D tensor of shape {numel(x)}.
+ * @param x Input tensor.
+ * @return 1-D tensor containing all elements.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> flatten(const std::shared_ptr<Tensor<T>>& x) {
   return reshape(x, {numel(x->shape)});
 }
 
+/**
+ * @brief Removes a singleton dimension of size 1 at the specified axis.
+ * @param x Input tensor.
+ * @param dim Index of dimension of size 1 to remove.
+ * @return Tensor with dimension removed.
+ * @throws std::invalid_argument If dim is out of bounds or shape[dim] != 1.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> squeeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
   if (dim >= x->shape.size()) {
@@ -64,6 +91,13 @@ std::shared_ptr<Tensor<T>> squeeze(const std::shared_ptr<Tensor<T>>& x, std::siz
   return reshape(x, std::move(new_shape));
 }
 
+/**
+ * @brief Inserts a singleton dimension (size 1) at the specified axis.
+ * @param x Input tensor.
+ * @param dim Index where singleton dimension should be inserted (0 <= dim <= rank).
+ * @return Tensor with dimension inserted.
+ * @throws std::invalid_argument If dim > x->shape.size().
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> unsqueeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
   if (dim > x->shape.size()) {
@@ -71,109 +105,97 @@ std::shared_ptr<Tensor<T>> unsqueeze(const std::shared_ptr<Tensor<T>>& x, std::s
   }
 
   Shape new_shape = x->shape;
-  new_shape.insert(new_shape.begin() + static_cast<std::ptrdiff_t>(dim), 1);
+  new_shape.insert(new_shape.begin() + dim, 1);
 
   return reshape(x, std::move(new_shape));
 }
 
+/**
+ * @brief Concatenates a sequence of tensors along a specified axis.
+ * @param tensors List of tensors to concatenate.
+ * @param dim Axis along which tensors are concatenated.
+ * @return Concatenated tensor.
+ * @throws std::invalid_argument If tensors is empty or shapes do not align.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& tensors,
                                std::size_t dim) {
   if (tensors.empty()) {
     throw std::invalid_argument("cat: empty tensor list");
   }
-  for (const auto& t : tensors) {
-    if (!t) throw std::invalid_argument("cat: null tensor pointer");
-  }
-  if (tensors[0]->shape.size() != 2) {
-    throw std::invalid_argument("cat: only rank-2 tensors are supported");
-  }
-  if (dim > 1) {
-    throw std::invalid_argument("cat: dim must be 0 or 1 for rank-2 tensors");
+
+  const auto& first_shape = tensors[0]->shape;
+  if (dim >= first_shape.size()) {
+    throw std::invalid_argument("cat: dim out of range");
   }
 
-  const auto& ref_shape = tensors[0]->shape;
-  for (std::size_t t = 1; t < tensors.size(); ++t) {
-    if (tensors[t]->shape.size() != 2) {
-      throw std::invalid_argument("cat: all tensors must be rank-2");
+  std::size_t total_dim_size = 0;
+  bool any_rg = false;
+  for (const auto& t : tensors) {
+    if (t->shape.size() != first_shape.size()) {
+      throw std::invalid_argument("cat: rank mismatch among input tensors");
     }
-    for (std::size_t d = 0; d < 2; ++d) {
-      if (d != dim && tensors[t]->shape[d] != ref_shape[d]) {
-        throw std::invalid_argument("cat: shape mismatch on non-cat dimension");
+    for (std::size_t d = 0; d < first_shape.size(); ++d) {
+      if (d != dim && t->shape[d] != first_shape[d]) {
+        throw std::invalid_argument("cat: dimension mismatch along non-cat axis");
       }
     }
+    total_dim_size += t->shape[dim];
+    if (t->requires_grad) any_rg = true;
   }
 
-  std::size_t cat_size = 0;
-  for (const auto& t : tensors) cat_size += t->shape[dim];
+  Shape out_shape = first_shape;
+  out_shape[dim] = total_dim_size;
 
-  Shape out_shape = ref_shape;
-  out_shape[dim] = cat_size;
+  auto out = detail::make_result<T>(out_shape, any_rg, "cat", tensors);
 
-  bool rg = false;
-  for (const auto& t : tensors) {
-    rg = rg || t->requires_grad;
-  }
+  std::size_t outer = 1;
+  for (std::size_t d = 0; d < dim; ++d) outer *= first_shape[d];
+  std::size_t inner = 1;
+  for (std::size_t d = dim + 1; d < first_shape.size(); ++d) inner *= first_shape[d];
 
-  auto out = detail::make_result<T>(out_shape, rg, "cat", tensors);
+  std::size_t out_dim_stride = inner;
+  std::size_t out_outer_stride = total_dim_size * inner;
 
-  if (dim == 0) {
-    std::size_t offset = 0;
+  for (std::size_t o = 0; o < outer; ++o) {
+    std::size_t dim_offset = 0;
     for (const auto& t : tensors) {
-      for (std::size_t i = 0; i < t->data.size(); ++i) {
-        out->data[offset + i] = t->data[i];
-      }
-      offset += t->data.size();
-    }
-  } else {
-    const std::size_t out_cols = out_shape[1];
-    const std::size_t nrows = ref_shape[0];
-    for (std::size_t r = 0; r < nrows; ++r) {
-      std::size_t col_offset = 0;
-      for (const auto& t : tensors) {
-        for (std::size_t c = 0; c < t->shape[1]; ++c) {
-          out->data[r * out_cols + col_offset + c] = t->data[r * t->shape[1] + c];
+      std::size_t cur_dim_size = t->shape[dim];
+      for (std::size_t d = 0; d < cur_dim_size; ++d) {
+        for (std::size_t i = 0; i < inner; ++i) {
+          std::size_t src_idx = o * (cur_dim_size * inner) + d * inner + i;
+          std::size_t dst_idx = o * out_outer_stride + (dim_offset + d) * out_dim_stride + i;
+          out->data[dst_idx] = t->data[src_idx];
         }
-        col_offset += t->shape[1];
       }
+      dim_offset += cur_dim_size;
     }
   }
 
-  if (rg) {
-    std::vector<Shape> input_shapes;
-    for (const auto& t : tensors) input_shapes.push_back(t->shape);
-
-    out->backward_fn = [tensors, input_shapes, dim]() {
+  if (any_rg) {
+    out->backward_fn = [tensors, dim, outer, inner, total_dim_size, out_dim_stride,
+                        out_outer_stride]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
 
-      for (auto& p : tensors) detail::ensure_grad(*p);
+      for (const auto& t : tensors) {
+        detail::ensure_grad(*t);
+      }
 
-      if (dim == 0) {
-        std::size_t offset = 0;
-        for (std::size_t t = 0; t < tensors.size(); ++t) {
-          if (tensors[t]->requires_grad) {
-            std::size_t n = tensors[t]->data.size();
-            for (std::size_t i = 0; i < n; ++i) {
-              tensors[t]->grad[i] += self->grad[offset + i];
-            }
-          }
-          offset += tensors[t]->data.size();
-        }
-      } else {
-        const std::size_t nrows = input_shapes[0][0];
-        const std::size_t out_cols = self->grad.size() / nrows;
-        for (std::size_t r = 0; r < nrows; ++r) {
-          std::size_t col_offset = 0;
-          for (std::size_t t = 0; t < tensors.size(); ++t) {
-            if (tensors[t]->requires_grad) {
-              for (std::size_t c = 0; c < input_shapes[t][1]; ++c) {
-                tensors[t]->grad[r * input_shapes[t][1] + c] +=
-                    self->grad[r * out_cols + col_offset + c];
+      for (std::size_t o = 0; o < outer; ++o) {
+        std::size_t dim_offset = 0;
+        for (const auto& t : tensors) {
+          std::size_t cur_dim_size = t->shape[dim];
+          if (t->requires_grad) {
+            for (std::size_t d = 0; d < cur_dim_size; ++d) {
+              for (std::size_t i = 0; i < inner; ++i) {
+                std::size_t src_idx = o * (cur_dim_size * inner) + d * inner + i;
+                std::size_t dst_idx = o * out_outer_stride + (dim_offset + d) * out_dim_stride + i;
+                t->grad[src_idx] += self->grad[dst_idx];
               }
             }
-            col_offset += input_shapes[t][1];
           }
+          dim_offset += cur_dim_size;
         }
       }
     };
@@ -182,7 +204,7 @@ std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& te
   return out;
 }
 
-// Explicit Instantiations
+// Explicit template instantiations
 template std::shared_ptr<Tensor<float>> reshape(const std::shared_ptr<Tensor<float>>&, Shape);
 template std::shared_ptr<Tensor<double>> reshape(const std::shared_ptr<Tensor<double>>&, Shape);
 template std::shared_ptr<Tensor<int>> reshape(const std::shared_ptr<Tensor<int>>&, Shape);

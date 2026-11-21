@@ -1,10 +1,18 @@
 /**
  * @file test_ops_matrix.cc
  * @brief Unit tests for 2D matrix multiplication and transposition.
+ *
+ * @details
+ * Validates forward calculations and autograd backward derivatives for:
+ * - `matmul`: 2D matrix product.
+ * - `transpose`: Matrix transposition.
  */
 
 #include "test_common.h"
 
+/**
+ * @brief Tests forward output and gradients of 2D matrix multiplication.
+ */
 TEST(grad_matmul) {
   auto a = scorch::Tensor<float>::from({2, 2}, {1.f, 2.f, 3.f, 4.f}, /*requires_grad=*/true);
   auto b = scorch::Tensor<float>::from({2, 2}, {5.f, 6.f, 7.f, 8.f}, /*requires_grad=*/true);
@@ -26,6 +34,9 @@ TEST(grad_matmul) {
   EXPECT_NEAR(b->grad[3], 6.f, 1e-9f);
 }
 
+/**
+ * @brief Tests forward output and gradients of 2D matrix transposition.
+ */
 TEST(grad_transpose) {
   auto a =
       scorch::Tensor<float>::from({2, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, /*requires_grad=*/true);

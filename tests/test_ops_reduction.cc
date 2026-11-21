@@ -1,10 +1,20 @@
 /**
  * @file test_ops_reduction.cc
  * @brief Unit tests for reduction operations: sum, mean, max, sum_dim.
+ *
+ * @details
+ * Validates forward values and gradient propagation for:
+ * - `reduce`: Full sum reduction.
+ * - `mean`: Global arithmetic mean.
+ * - `max`: Global maximum element.
+ * - `sum_dim`: Dimension-wise sum collapsing a specific axis.
  */
 
 #include "test_common.h"
 
+/**
+ * @brief Tests full tensor sum reduction and gradient broadcasting.
+ */
 TEST(grad_reduce) {
   auto a = scorch::Tensor<float>::from({2, 2}, {1.f, 2.f, 3.f, 4.f}, /*requires_grad=*/true);
   auto c = scorch::reduce(a);
@@ -14,6 +24,9 @@ TEST(grad_reduce) {
   for (auto g : a->grad) EXPECT_NEAR(g, 1.f, 1e-9f);
 }
 
+/**
+ * @brief Tests arithmetic mean reduction and scaled gradient distribution.
+ */
 TEST(grad_mean) {
   auto x = scorch::Tensor<float>::from({4}, {1.f, 2.f, 3.f, 4.f}, /*requires_grad=*/true);
   auto c = scorch::mean(x);
@@ -24,6 +37,9 @@ TEST(grad_mean) {
   }
 }
 
+/**
+ * @brief Tests maximum element extraction and gradient routing to the argmax index.
+ */
 TEST(grad_max) {
   auto x = scorch::Tensor<float>::from({4}, {1.f, 4.f, 2.f, 3.f}, /*requires_grad=*/true);
   auto c = scorch::max(x);
@@ -35,6 +51,9 @@ TEST(grad_max) {
   EXPECT_NEAR(x->grad[3], 0.f, 1e-6f);
 }
 
+/**
+ * @brief Tests sum reduction along a specified axis.
+ */
 TEST(grad_sum_dim) {
   auto x = scorch::Tensor<float>::from({2, 3}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f},
                                        /*requires_grad=*/true);

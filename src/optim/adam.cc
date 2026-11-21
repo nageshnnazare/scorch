@@ -1,6 +1,21 @@
 /**
  * @file adam.cc
  * @brief Implementation of Adam optimizer.
+ *
+ * @details
+ * Updates parameters using the Kingma & Ba Adam algorithm with bias correction:
+ * \f[
+ *   m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t
+ * \f]
+ * \f[
+ *   v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2
+ * \f]
+ * \f[
+ *   \hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t = \frac{v_t}{1 - \beta_2^t}
+ * \f]
+ * \f[
+ *   \theta_t = \theta_{t-1} - \frac{\gamma \hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+ * \f]
  */
 
 #include "optim/adam.h"

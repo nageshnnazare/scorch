@@ -1,10 +1,23 @@
 /**
  * @file test_main.cc
  * @brief Test runner entry point for the test_tensor executable.
+ *
+ * @details
+ * Dispatches test execution based on CLI arguments:
+ * - `--list`: Lists all registered test case names to standard output.
+ * - `<name>`: Runs a single named test case.
+ * - (No args): Executes all registered unit tests sequentially, printing PASS/FAIL
+ *   status and returning 0 on success or 1 if any test fails.
  */
 
 #include "test_common.h"
 
+/**
+ * @brief Main test runner function.
+ * @param argc Command-line argument count.
+ * @param argv Command-line arguments.
+ * @return 0 on success (all tests pass), non-zero if any test fails or argument is invalid.
+ */
 int main(int argc, char* argv[]) {
   auto& tests = get_test_registry();
 

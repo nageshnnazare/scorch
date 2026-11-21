@@ -1,6 +1,14 @@
 /**
  * @file activation.cc
  * @brief Implementation of activation functions: ReLU, Leaky ReLU, Sigmoid, Tanh, Softmax.
+ *
+ * @details
+ * Defines the forward evaluation and reverse-mode gradient closures for:
+ * - `relu`: y = max(0, x), grad = 1[x > 0]
+ * - `leaky_relu`: y = max(alpha * x, x), grad = 1[x > 0] + alpha * 1[x <= 0]
+ * - `sigmoid`: y = 1 / (1 + exp(-x)), grad = y * (1 - y)
+ * - `tanh_op`: y = tanh(x), grad = 1 - y^2
+ * - `softmax`: y = exp(x - max(x)) / sum(exp(x - max(x)))
  */
 
 #include "ops/activation.h"
@@ -12,6 +20,11 @@
 
 namespace scorch {
 
+/**
+ * @brief Differentiable ReLU element-wise operation.
+ * @param x Input tensor.
+ * @return Tensor with negative elements clamped to 0.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
@@ -40,6 +53,12 @@ std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable Leaky ReLU element-wise operation.
+ * @param x Input tensor.
+ * @param alpha Negative slope multiplier.
+ * @return Tensor with negative elements scaled by alpha.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alpha) {
   bool rg = x->requires_grad;
@@ -56,13 +75,9 @@ std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alp
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
-        float a = static_cast<float>(alpha);
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          if (x->data[i] > T(0)) {
-            x->grad[i] += self->grad[i];
-          } else {
-            x->grad[i] += self->grad[i] * a;
-          }
+          float slope = (x->data[i] > T(0)) ? 1.f : static_cast<float>(alpha);
+          x->grad[i] += self->grad[i] * slope;
         }
       }
     };
@@ -71,25 +86,30 @@ std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alp
   return out;
 }
 
+/**
+ * @brief Differentiable Sigmoid element-wise operation.
+ * @param x Input tensor.
+ * @return Tensor with elements mapped to (0, 1).
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
   auto out = detail::make_result<T>(x->shape, rg, "sigmoid", {x});
 
   for (std::size_t i = 0; i < out->data.size(); ++i) {
-    out->data[i] = static_cast<T>(1.0 / (1.0 + std::exp(-static_cast<double>(x->data[i]))));
+    double v = static_cast<double>(x->data[i]);
+    out->data[i] = static_cast<T>(1.0 / (1.0 + std::exp(-v)));
   }
 
   if (rg) {
-    auto out_data = out->data;
-    out->backward_fn = [x, out_data]() {
+    out->backward_fn = [x, out]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          float s = static_cast<float>(out_data[i]);
+          float s = static_cast<float>(out->data[i]);
           x->grad[i] += self->grad[i] * s * (1.f - s);
         }
       }
@@ -99,26 +119,31 @@ std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable Hyperbolic Tangent (Tanh) element-wise operation.
+ * @param x Input tensor.
+ * @return Tensor with elements mapped to (-1, 1).
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x) {
   bool rg = x->requires_grad;
   auto out = detail::make_result<T>(x->shape, rg, "tanh", {x});
 
   for (std::size_t i = 0; i < out->data.size(); ++i) {
-    out->data[i] = static_cast<T>(std::tanh(static_cast<double>(x->data[i])));
+    double v = static_cast<double>(x->data[i]);
+    out->data[i] = static_cast<T>(std::tanh(v));
   }
 
   if (rg) {
-    auto out_data = out->data;
-    out->backward_fn = [x, out_data]() {
+    out->backward_fn = [x, out]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          float t = static_cast<float>(out_data[i]);
-          x->grad[i] += self->grad[i] * (1.f - t * t);
+          float th = static_cast<float>(out->data[i]);
+          x->grad[i] += self->grad[i] * (1.f - th * th);
         }
       }
     };
@@ -127,82 +152,69 @@ std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
+/**
+ * @brief Differentiable Softmax along a specified dimension.
+ * @param x Input tensor.
+ * @param dim Axis along which to compute softmax normalization.
+ * @return Normalized tensor summing to 1 along dim.
+ * @throws std::invalid_argument If dim >= x->shape.size().
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
-  if (x->shape.size() != 2) {
-    throw std::invalid_argument("softmax: only rank-2 tensors are supported");
-  }
-  if (dim > 1) {
-    throw std::invalid_argument("softmax: dim must be 0 or 1 for rank-2 tensors");
+  if (dim >= x->shape.size()) {
+    throw std::invalid_argument("softmax: dim out of range");
   }
 
-  const std::size_t rows = x->shape[0];
-  const std::size_t cols = x->shape[1];
   bool rg = x->requires_grad;
   auto out = detail::make_result<T>(x->shape, rg, "softmax", {x});
 
-  if (dim == 1) {
-    for (std::size_t r = 0; r < rows; ++r) {
-      T max_val = x->data[r * cols];
-      for (std::size_t c = 1; c < cols; ++c) {
-        if (x->data[r * cols + c] > max_val) max_val = x->data[r * cols + c];
+  std::size_t outer = 1;
+  for (std::size_t i = 0; i < dim; ++i) outer *= x->shape[i];
+  std::size_t dim_size = x->shape[dim];
+  std::size_t inner = 1;
+  for (std::size_t i = dim + 1; i < x->shape.size(); ++i) inner *= x->shape[i];
+
+  for (std::size_t o = 0; o < outer; ++o) {
+    for (std::size_t inn = 0; inn < inner; ++inn) {
+      double max_val = static_cast<double>(x->data[o * dim_size * inner + 0 * inner + inn]);
+      for (std::size_t d = 1; d < dim_size; ++d) {
+        double v = static_cast<double>(x->data[o * dim_size * inner + d * inner + inn]);
+        if (v > max_val) max_val = v;
       }
-      T sum_exp = T(0);
-      for (std::size_t c = 0; c < cols; ++c) {
-        out->data[r * cols + c] =
-            static_cast<T>(std::exp(static_cast<double>(x->data[r * cols + c] - max_val)));
-        sum_exp += out->data[r * cols + c];
+
+      double sum_exp = 0.0;
+      for (std::size_t d = 0; d < dim_size; ++d) {
+        double p = std::exp(static_cast<double>(x->data[o * dim_size * inner + d * inner + inn]) -
+                            max_val);
+        out->data[o * dim_size * inner + d * inner + inn] = static_cast<T>(p);
+        sum_exp += p;
       }
-      for (std::size_t c = 0; c < cols; ++c) {
-        out->data[r * cols + c] /= sum_exp;
-      }
-    }
-  } else {
-    for (std::size_t c = 0; c < cols; ++c) {
-      T max_val = x->data[c];
-      for (std::size_t r = 1; r < rows; ++r) {
-        if (x->data[r * cols + c] > max_val) max_val = x->data[r * cols + c];
-      }
-      T sum_exp = T(0);
-      for (std::size_t r = 0; r < rows; ++r) {
-        out->data[r * cols + c] =
-            static_cast<T>(std::exp(static_cast<double>(x->data[r * cols + c] - max_val)));
-        sum_exp += out->data[r * cols + c];
-      }
-      for (std::size_t r = 0; r < rows; ++r) {
-        out->data[r * cols + c] /= sum_exp;
+
+      for (std::size_t d = 0; d < dim_size; ++d) {
+        out->data[o * dim_size * inner + d * inner + inn] = static_cast<T>(
+            static_cast<double>(out->data[o * dim_size * inner + d * inner + inn]) / sum_exp);
       }
     }
   }
 
   if (rg) {
-    auto out_data = out->data;
-    out->backward_fn = [x, out_data, rows, cols, dim]() {
+    out->backward_fn = [x, out, dim, outer, dim_size, inner]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
-        if (dim == 1) {
-          for (std::size_t r = 0; r < rows; ++r) {
-            float dot = 0.f;
-            for (std::size_t c = 0; c < cols; ++c) {
-              dot += self->grad[r * cols + c] * static_cast<float>(out_data[r * cols + c]);
+        for (std::size_t o = 0; o < outer; ++o) {
+          for (std::size_t inn = 0; inn < inner; ++inn) {
+            float sum_gy = 0.f;
+            for (std::size_t d = 0; d < dim_size; ++d) {
+              std::size_t idx = o * dim_size * inner + d * inner + inn;
+              sum_gy += self->grad[idx] * static_cast<float>(out->data[idx]);
             }
-            for (std::size_t c = 0; c < cols; ++c) {
-              float s = static_cast<float>(out_data[r * cols + c]);
-              x->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
-            }
-          }
-        } else {
-          for (std::size_t c = 0; c < cols; ++c) {
-            float dot = 0.f;
-            for (std::size_t r = 0; r < rows; ++r) {
-              dot += self->grad[r * cols + c] * static_cast<float>(out_data[r * cols + c]);
-            }
-            for (std::size_t r = 0; r < rows; ++r) {
-              float s = static_cast<float>(out_data[r * cols + c]);
-              x->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
+            for (std::size_t d = 0; d < dim_size; ++d) {
+              std::size_t idx = o * dim_size * inner + d * inner + inn;
+              float y_val = static_cast<float>(out->data[idx]);
+              x->grad[idx] += y_val * (self->grad[idx] - sum_gy);
             }
           }
         }
@@ -213,7 +225,7 @@ std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::siz
   return out;
 }
 
-// Explicit Instantiations
+// Explicit template instantiations
 template std::shared_ptr<Tensor<float>> relu(const std::shared_ptr<Tensor<float>>&);
 template std::shared_ptr<Tensor<double>> relu(const std::shared_ptr<Tensor<double>>&);
 template std::shared_ptr<Tensor<int>> relu(const std::shared_ptr<Tensor<int>>&);
@@ -224,15 +236,12 @@ template std::shared_ptr<Tensor<int>> leaky_relu(const std::shared_ptr<Tensor<in
 
 template std::shared_ptr<Tensor<float>> sigmoid(const std::shared_ptr<Tensor<float>>&);
 template std::shared_ptr<Tensor<double>> sigmoid(const std::shared_ptr<Tensor<double>>&);
-template std::shared_ptr<Tensor<int>> sigmoid(const std::shared_ptr<Tensor<int>>&);
 
 template std::shared_ptr<Tensor<float>> tanh_op(const std::shared_ptr<Tensor<float>>&);
 template std::shared_ptr<Tensor<double>> tanh_op(const std::shared_ptr<Tensor<double>>&);
-template std::shared_ptr<Tensor<int>> tanh_op(const std::shared_ptr<Tensor<int>>&);
 
 template std::shared_ptr<Tensor<float>> softmax(const std::shared_ptr<Tensor<float>>&, std::size_t);
 template std::shared_ptr<Tensor<double>> softmax(const std::shared_ptr<Tensor<double>>&,
                                                  std::size_t);
-template std::shared_ptr<Tensor<int>> softmax(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
 }  // namespace scorch

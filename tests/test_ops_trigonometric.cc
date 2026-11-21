@@ -1,6 +1,14 @@
 /**
  * @file test_ops_trigonometric.cc
  * @brief Unit tests for differentiable trigonometric and mathematical operations.
+ *
+ * @details
+ * Validates forward values and analytical derivatives for:
+ * - Circular: `sin`, `cos`, `tan`
+ * - Inverse: `asin`, `acos`, `atan`
+ * - Hyperbolic: `sinh`, `cosh`, `tanh_alias`
+ * - Logarithms: `loge`, `log2`, `log10`
+ * - Roots & absolute value: `sqrt`, `rsqrt`, `abs`
  */
 
 #include <cmath>
@@ -9,186 +17,226 @@
 #include "ops/trigonometric.h"
 #include "test_common.h"
 
+/**
+ * @brief Tests forward evaluation and cos gradient of sin.
+ */
 TEST(grad_sin) {
-  auto x = scorch::from({2}, {0.0f, static_cast<float>(std::numbers::pi / 2.0)},
-                        /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from(
+      {3}, {0.f, static_cast<float>(std::numbers::pi) / 2.f, static_cast<float>(std::numbers::pi)},
+      /*requires_grad=*/true);
   auto y = scorch::sin(x);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 1.f, 1e-6f);
+  EXPECT_NEAR(y->data[2], 0.f, 1e-6f);
 
-  EXPECT_NEAR(y->data[0], 0.0f, 1e-5f);
-  EXPECT_NEAR(y->data[1], 1.0f, 1e-5f);
-
-  auto loss = scorch::reduce(y);
-  loss->backward();
-
-  // d/dx sin(0) = cos(0) = 1.0
-  EXPECT_NEAR(x->grad[0], 1.0f, 1e-5f);
-  // d/dx sin(pi/2) = cos(pi/2) = 0.0
-  EXPECT_NEAR(x->grad[1], 0.0f, 1e-5f);
+  y->backward();
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 0.f, 1e-6f);
+  EXPECT_NEAR(x->grad[2], -1.f, 1e-6f);
 }
 
+/**
+ * @brief Tests forward evaluation and -sin gradient of cos.
+ */
 TEST(grad_cos) {
-  auto x = scorch::from({2}, {0.0f, static_cast<float>(std::numbers::pi / 2.0)},
-                        /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from(
+      {3}, {0.f, static_cast<float>(std::numbers::pi) / 2.f, static_cast<float>(std::numbers::pi)},
+      /*requires_grad=*/true);
   auto y = scorch::cos(x);
+  EXPECT_NEAR(y->data[0], 1.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[2], -1.f, 1e-6f);
 
-  EXPECT_NEAR(y->data[0], 1.0f, 1e-5f);
-  EXPECT_NEAR(y->data[1], 0.0f, 1e-5f);
-
-  auto loss = scorch::reduce(y);
-  loss->backward();
-
-  // d/dx cos(0) = -sin(0) = 0.0
-  EXPECT_NEAR(x->grad[0], 0.0f, 1e-5f);
-  // d/dx cos(pi/2) = -sin(pi/2) = -1.0
-  EXPECT_NEAR(x->grad[1], -1.0f, 1e-5f);
+  y->backward();
+  EXPECT_NEAR(x->grad[0], 0.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], -1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[2], 0.f, 1e-6f);
 }
 
+/**
+ * @brief Tests forward evaluation and sec^2 gradient of tan.
+ */
 TEST(grad_tan) {
-  auto x = scorch::from({1}, {0.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, static_cast<float>(std::numbers::pi) / 4.f},
+                                       /*requires_grad=*/true);
   auto y = scorch::tan(x);
-
-  EXPECT_NEAR(y->data[0], 0.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 1.f, 1e-5f);
 
   y->backward();
-  // d/dx tan(0) = 1 / cos^2(0) = 1.0
-  EXPECT_NEAR(x->grad[0], 1.0f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 2.f, 1e-5f);
 }
 
+/**
+ * @brief Tests forward evaluation and 1/sqrt(1-x^2) gradient of asin.
+ */
 TEST(grad_asin) {
-  auto x = scorch::from({1}, {0.5f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 0.5f}, /*requires_grad=*/true);
   auto y = scorch::asin(x);
-
-  EXPECT_NEAR(y->data[0], static_cast<float>(std::asin(0.5)), 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::asin(0.5)), 1e-6f);
 
   y->backward();
-  // d/dx asin(0.5) = 1 / sqrt(1 - 0.25) = 1 / sqrt(0.75) = 1.1547005f
-  float expected_grad = 1.0f / std::sqrt(1.0f - 0.25f);
-  EXPECT_NEAR(x->grad[0], expected_grad, 1e-4f);
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 1.f / std::sqrt(1.f - 0.25f), 1e-5f);
 }
 
+/**
+ * @brief Tests forward evaluation and -1/sqrt(1-x^2) gradient of acos.
+ */
 TEST(grad_acos) {
-  auto x = scorch::from({1}, {0.5f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 0.5f}, /*requires_grad=*/true);
   auto y = scorch::acos(x);
-
-  EXPECT_NEAR(y->data[0], static_cast<float>(std::acos(0.5)), 1e-5f);
+  EXPECT_NEAR(y->data[0], static_cast<float>(std::numbers::pi) / 2.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::acos(0.5)), 1e-6f);
 
   y->backward();
-  // d/dx acos(0.5) = -1 / sqrt(1 - 0.25)
-  float expected_grad = -1.0f / std::sqrt(1.0f - 0.25f);
-  EXPECT_NEAR(x->grad[0], expected_grad, 1e-4f);
+  EXPECT_NEAR(x->grad[0], -1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], -1.f / std::sqrt(1.f - 0.25f), 1e-5f);
 }
 
+/**
+ * @brief Tests forward evaluation and 1/(1+x^2) gradient of atan.
+ */
 TEST(grad_atan) {
-  auto x = scorch::from({1}, {1.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 1.f}, /*requires_grad=*/true);
   auto y = scorch::atan(x);
-
-  EXPECT_NEAR(y->data[0], static_cast<float>(std::numbers::pi / 4.0), 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::numbers::pi) / 4.f, 1e-6f);
 
   y->backward();
-  // d/dx atan(1) = 1 / (1 + 1^2) = 0.5
-  EXPECT_NEAR(x->grad[0], 0.5f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 0.5f, 1e-6f);
 }
 
+/**
+ * @brief Tests forward evaluation and cosh gradient of sinh.
+ */
 TEST(grad_sinh) {
-  auto x = scorch::from({1}, {0.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 1.f}, /*requires_grad=*/true);
   auto y = scorch::sinh(x);
-
-  EXPECT_NEAR(y->data[0], 0.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::sinh(1.0)), 1e-6f);
 
   y->backward();
-  // d/dx sinh(0) = cosh(0) = 1.0
-  EXPECT_NEAR(x->grad[0], 1.0f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], static_cast<float>(std::cosh(1.0)), 1e-6f);
 }
 
+/**
+ * @brief Tests forward evaluation and sinh gradient of cosh.
+ */
 TEST(grad_cosh) {
-  auto x = scorch::from({1}, {0.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 1.f}, /*requires_grad=*/true);
   auto y = scorch::cosh(x);
-
-  EXPECT_NEAR(y->data[0], 1.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 1.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::cosh(1.0)), 1e-6f);
 
   y->backward();
-  // d/dx cosh(0) = sinh(0) = 0.0
-  EXPECT_NEAR(x->grad[0], 0.0f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], 0.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], static_cast<float>(std::sinh(1.0)), 1e-6f);
 }
 
+/**
+ * @brief Tests tanh alias convenience wrapper.
+ */
 TEST(grad_tanh_alias) {
-  auto x = scorch::from({1}, {0.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {0.f, 1.f}, /*requires_grad=*/true);
   auto y = scorch::tanh(x);
-
-  EXPECT_NEAR(y->data[0], 0.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::tanh(1.0)), 1e-6f);
 
   y->backward();
-  // d/dx tanh(0) = 1 - tanh^2(0) = 1.0
-  EXPECT_NEAR(x->grad[0], 1.0f, 1e-5f);
+  float dt = 1.f - static_cast<float>(std::tanh(1.0) * std::tanh(1.0));
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], dt, 1e-6f);
 }
 
+/**
+ * @brief Tests natural logarithm loge alias.
+ */
 TEST(grad_loge) {
-  auto x = scorch::from({1}, {static_cast<float>(std::numbers::e)}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {1.f, 2.f}, /*requires_grad=*/true);
   auto y = scorch::loge(x);
-
-  EXPECT_NEAR(y->data[0], 1.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], static_cast<float>(std::log(2.0)), 1e-6f);
 
   y->backward();
-  // d/dx ln(e) = 1 / e
-  EXPECT_NEAR(x->grad[0], static_cast<float>(1.0 / std::numbers::e), 1e-5f);
+  EXPECT_NEAR(x->grad[0], 1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 0.5f, 1e-6f);
 }
 
+/**
+ * @brief Tests base-2 logarithm forward values and gradients.
+ */
 TEST(grad_log2) {
-  auto x = scorch::from({1}, {4.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {1.f, 2.f}, /*requires_grad=*/true);
   auto y = scorch::log2(x);
-
-  EXPECT_NEAR(y->data[0], 2.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 1.f, 1e-6f);
 
   y->backward();
-  // d/dx log2(4) = 1 / (4 * ln 2)
-  float expected_grad = 1.0f / (4.0f * std::log(2.0f));
-  EXPECT_NEAR(x->grad[0], expected_grad, 1e-4f);
+  float ln2 = static_cast<float>(std::numbers::ln2);
+  EXPECT_NEAR(x->grad[0], 1.f / ln2, 1e-5f);
+  EXPECT_NEAR(x->grad[1], 1.f / (2.f * ln2), 1e-5f);
 }
 
+/**
+ * @brief Tests base-10 logarithm forward values and gradients.
+ */
 TEST(grad_log10) {
-  auto x = scorch::from({1}, {100.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {1.f, 10.f}, /*requires_grad=*/true);
   auto y = scorch::log10(x);
-
-  EXPECT_NEAR(y->data[0], 2.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 1.f, 1e-6f);
 
   y->backward();
-  // d/dx log10(100) = 1 / (100 * ln 10)
-  float expected_grad = 1.0f / (100.0f * std::log(10.0f));
-  EXPECT_NEAR(x->grad[0], expected_grad, 1e-5f);
+  float ln10 = static_cast<float>(std::numbers::ln10);
+  EXPECT_NEAR(x->grad[0], 1.f / ln10, 1e-5f);
+  EXPECT_NEAR(x->grad[1], 1.f / (10.f * ln10), 1e-5f);
 }
 
+/**
+ * @brief Tests square root forward evaluation and 1/(2*sqrt(x)) gradient.
+ */
 TEST(grad_sqrt) {
-  auto x = scorch::from({1}, {4.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {4.f, 9.f}, /*requires_grad=*/true);
   auto y = scorch::sqrt(x);
-
-  EXPECT_NEAR(y->data[0], 2.0f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 2.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 3.f, 1e-6f);
 
   y->backward();
-  // d/dx sqrt(4) = 1 / (2 * sqrt(4)) = 0.25
-  EXPECT_NEAR(x->grad[0], 0.25f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], 1.f / 4.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 1.f / 6.f, 1e-6f);
 }
 
+/**
+ * @brief Tests reciprocal square root forward evaluation and -1/(2*x^(3/2)) gradient.
+ */
 TEST(grad_rsqrt) {
-  auto x = scorch::from({1}, {4.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({2}, {4.f, 9.f}, /*requires_grad=*/true);
   auto y = scorch::rsqrt(x);
-
-  EXPECT_NEAR(y->data[0], 0.5f, 1e-5f);
+  EXPECT_NEAR(y->data[0], 0.5f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 1.f / 3.f, 1e-6f);
 
   y->backward();
-  // d/dx (x^{-1/2}) = -0.5 * x^{-3/2} = -0.5 * (1/8) = -0.0625
-  EXPECT_NEAR(x->grad[0], -0.0625f, 1e-5f);
+  EXPECT_NEAR(x->grad[0], -0.5f / 8.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], -0.5f / 27.f, 1e-6f);
 }
 
+/**
+ * @brief Tests absolute value forward evaluation and sgn(x) gradient.
+ */
 TEST(grad_abs) {
-  auto x = scorch::from({2}, {-3.0f, 5.0f}, /*requires_grad=*/true);
+  auto x = scorch::Tensor<float>::from({3}, {-3.f, 0.f, 4.f}, /*requires_grad=*/true);
   auto y = scorch::abs(x);
+  EXPECT_NEAR(y->data[0], 3.f, 1e-6f);
+  EXPECT_NEAR(y->data[1], 0.f, 1e-6f);
+  EXPECT_NEAR(y->data[2], 4.f, 1e-6f);
 
-  EXPECT_NEAR(y->data[0], 3.0f, 1e-5f);
-  EXPECT_NEAR(y->data[1], 5.0f, 1e-5f);
-
-  auto loss = scorch::reduce(y);
-  loss->backward();
-
-  EXPECT_NEAR(x->grad[0], -1.0f, 1e-5f);
-  EXPECT_NEAR(x->grad[1], 1.0f, 1e-5f);
+  y->backward();
+  EXPECT_NEAR(x->grad[0], -1.f, 1e-6f);
+  EXPECT_NEAR(x->grad[1], 0.f, 1e-6f);
+  EXPECT_NEAR(x->grad[2], 1.f, 1e-6f);
 }

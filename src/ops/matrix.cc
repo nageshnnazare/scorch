@@ -1,6 +1,11 @@
 /**
  * @file matrix.cc
  * @brief Implementation of 2D matrix multiplication and transposition.
+ *
+ * @details
+ * Implements differentiable matrix arithmetic:
+ * - `matmul`: 2D matrix product C = A @ B with gradient accumulation for A and B.
+ * - `transpose`: Matrix transposition with gradient transpose accumulation.
  */
 
 #include "ops/matrix.h"
@@ -11,6 +16,13 @@
 
 namespace scorch {
 
+/**
+ * @brief Performs 2D matrix multiplication with autograd backward support.
+ * @param a First matrix of shape {M, K}.
+ * @param b Second matrix of shape {K, N}.
+ * @return Product matrix of shape {M, N}.
+ * @throws std::invalid_argument If shapes are not rank-2 or inner dimensions do not match.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
                                   const std::shared_ptr<Tensor<T>>& b) {
@@ -74,20 +86,27 @@ std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
   return out;
 }
 
+/**
+ * @brief Computes the transpose of a 2D matrix with backward gradient flow.
+ * @param x Input 2D tensor of shape {M, N}.
+ * @return Transposed tensor of shape {N, M}.
+ * @throws std::invalid_argument If tensor is not rank-2.
+ */
 template <TensorScalar T>
 std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x) {
   if (x->shape.size() != 2) {
-    throw std::invalid_argument("transpose: only rank-2 tensors are currently supported");
+    throw std::invalid_argument("transpose: tensor must be rank-2");
   }
 
   const std::size_t rows = x->shape[0];
   const std::size_t cols = x->shape[1];
+
   bool rg = x->requires_grad;
   auto out = detail::make_result<T>({cols, rows}, rg, "transpose", {x});
 
-  for (std::size_t r = 0; r < rows; ++r) {
-    for (std::size_t c = 0; c < cols; ++c) {
-      out->data[c * rows + r] = x->data[r * cols + c];
+  for (std::size_t i = 0; i < rows; ++i) {
+    for (std::size_t j = 0; j < cols; ++j) {
+      out->data[j * rows + i] = x->data[i * cols + j];
     }
   }
 
@@ -98,9 +117,9 @@ std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x) {
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
-        for (std::size_t r = 0; r < rows; ++r) {
-          for (std::size_t c = 0; c < cols; ++c) {
-            x->grad[r * cols + c] += self->grad[c * rows + r];
+        for (std::size_t i = 0; i < rows; ++i) {
+          for (std::size_t j = 0; j < cols; ++j) {
+            x->grad[i * cols + j] += self->grad[j * rows + i];
           }
         }
       }
@@ -110,7 +129,7 @@ std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x) {
   return out;
 }
 
-// Explicit Instantiations
+// Explicit template instantiations
 template std::shared_ptr<Tensor<float>> matmul(const std::shared_ptr<Tensor<float>>&,
                                                const std::shared_ptr<Tensor<float>>&);
 template std::shared_ptr<Tensor<double>> matmul(const std::shared_ptr<Tensor<double>>&,
