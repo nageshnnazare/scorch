@@ -1,6 +1,7 @@
 /**
  * @file tensor_ops.cc
- * @brief Implementation of differentiable tensor operations with autograd backward passes.
+ * @brief Implementation of differentiable tensor operations with autograd backward passes,
+ *        returning std::shared_ptr<Tensor<T>>.
  */
 
 #include "tensor_ops.h"
@@ -27,32 +28,14 @@ void ensure_grad(Tensor<T>& t) {
 }
 
 /**
- * @brief Creates a parent pointer handle for the computation graph.
- *
- * For intermediate nodes (which may be temporaries created in nested expressions
- * such as `(a + b) * a`), allocates on the heap to ensure the node survives
- * until backpropagation finishes.
- *
- * For leaf nodes (t.parents empty), uses a non-owning handle so the backward
- * pass writes gradients directly into the caller's leaf tensor on the stack.
- */
-template <TensorScalar T>
-std::shared_ptr<Tensor<T>> make_parent_handle(const Tensor<T>& t) {
-  if (!t.parents.empty()) {
-    return std::make_shared<Tensor<T>>(t);
-  }
-  return std::shared_ptr<Tensor<T>>(const_cast<Tensor<T>*>(&t), [](Tensor<T>*) {});
-}
-
-/**
  * @brief Constructs an operation result tensor linked to its computation graph parents.
  */
 template <TensorScalar T>
-Tensor<T> make_result(Shape shape, bool requires_grad, std::string op_name,
-                      std::vector<std::shared_ptr<Tensor<T>>> parents) {
+std::shared_ptr<Tensor<T>> make_result(Shape shape, bool requires_grad, std::string op_name,
+                                       std::vector<std::shared_ptr<Tensor<T>>> parents) {
   auto out = Tensor<T>::zeros(std::move(shape), /*requires_grad=*/requires_grad);
-  out.op_name = std::move(op_name);
-  out.parents = std::move(parents);
+  out->op_name = std::move(op_name);
+  out->parents = std::move(parents);
   return out;
 }
 
@@ -63,34 +46,32 @@ Tensor<T> make_result(Shape shape, bool requires_grad, std::string op_name,
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b) {
-  if (a.shape != b.shape) {
+std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b) {
+  if (a->shape != b->shape) {
     throw std::invalid_argument("add: shape mismatch");
   }
 
-  bool rg = a.requires_grad || b.requires_grad;
-  auto a_ptr = make_parent_handle(a);
-  auto b_ptr = make_parent_handle(b);
+  bool rg = a->requires_grad || b->requires_grad;
+  auto out = make_result<T>(a->shape, rg, "add", {a, b});
 
-  auto out = make_result<T>(a.shape, rg, "add", {a_ptr, b_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = a.data[i] + b.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = a->data[i] + b->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [a_ptr, b_ptr]() {
+    out->backward_fn = [a, b]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*a_ptr);
-      ensure_grad(*b_ptr);
+      ensure_grad(*a);
+      ensure_grad(*b);
 
       for (std::size_t i = 0; i < self->grad.size(); ++i) {
-        if (a_ptr->requires_grad) {
-          a_ptr->grad[i] += self->grad[i];
+        if (a->requires_grad) {
+          a->grad[i] += self->grad[i];
         }
-        if (b_ptr->requires_grad) {
-          b_ptr->grad[i] += self->grad[i];
+        if (b->requires_grad) {
+          b->grad[i] += self->grad[i];
         }
       }
     };
@@ -104,34 +85,32 @@ Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b) {
-  if (a.shape != b.shape) {
+std::shared_ptr<Tensor<T>> sub(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b) {
+  if (a->shape != b->shape) {
     throw std::invalid_argument("sub: shape mismatch");
   }
 
-  bool rg = a.requires_grad || b.requires_grad;
-  auto a_ptr = make_parent_handle(a);
-  auto b_ptr = make_parent_handle(b);
+  bool rg = a->requires_grad || b->requires_grad;
+  auto out = make_result<T>(a->shape, rg, "sub", {a, b});
 
-  auto out = make_result<T>(a.shape, rg, "sub", {a_ptr, b_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = a.data[i] - b.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = a->data[i] - b->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [a_ptr, b_ptr]() {
+    out->backward_fn = [a, b]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*a_ptr);
-      ensure_grad(*b_ptr);
+      ensure_grad(*a);
+      ensure_grad(*b);
 
       for (std::size_t i = 0; i < self->grad.size(); ++i) {
-        if (a_ptr->requires_grad) {
-          a_ptr->grad[i] += self->grad[i];
+        if (a->requires_grad) {
+          a->grad[i] += self->grad[i];
         }
-        if (b_ptr->requires_grad) {
-          b_ptr->grad[i] += -self->grad[i];
+        if (b->requires_grad) {
+          b->grad[i] += -self->grad[i];
         }
       }
     };
@@ -145,34 +124,32 @@ Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b) {
-  if (a.shape != b.shape) {
+std::shared_ptr<Tensor<T>> mul(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b) {
+  if (a->shape != b->shape) {
     throw std::invalid_argument("mul: shape mismatch");
   }
 
-  bool rg = a.requires_grad || b.requires_grad;
-  auto a_ptr = make_parent_handle(a);
-  auto b_ptr = make_parent_handle(b);
+  bool rg = a->requires_grad || b->requires_grad;
+  auto out = make_result<T>(a->shape, rg, "mul", {a, b});
 
-  auto out = make_result<T>(a.shape, rg, "mul", {a_ptr, b_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = a.data[i] * b.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = a->data[i] * b->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [a_ptr, b_ptr]() {
+    out->backward_fn = [a, b]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*a_ptr);
-      ensure_grad(*b_ptr);
+      ensure_grad(*a);
+      ensure_grad(*b);
 
       for (std::size_t i = 0; i < self->grad.size(); ++i) {
-        if (a_ptr->requires_grad) {
-          a_ptr->grad[i] += self->grad[i] * static_cast<float>(b_ptr->data[i]);
+        if (a->requires_grad) {
+          a->grad[i] += self->grad[i] * static_cast<float>(b->data[i]);
         }
-        if (b_ptr->requires_grad) {
-          b_ptr->grad[i] += self->grad[i] * static_cast<float>(a_ptr->data[i]);
+        if (b->requires_grad) {
+          b->grad[i] += self->grad[i] * static_cast<float>(a->data[i]);
         }
       }
     };
@@ -186,36 +163,34 @@ Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b) {
-  if (a.shape != b.shape) {
+std::shared_ptr<Tensor<T>> div(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b) {
+  if (a->shape != b->shape) {
     throw std::invalid_argument("div: shape mismatch");
   }
 
-  bool rg = a.requires_grad || b.requires_grad;
-  auto a_ptr = make_parent_handle(a);
-  auto b_ptr = make_parent_handle(b);
+  bool rg = a->requires_grad || b->requires_grad;
+  auto out = make_result<T>(a->shape, rg, "div", {a, b});
 
-  auto out = make_result<T>(a.shape, rg, "div", {a_ptr, b_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = a.data[i] / b.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = a->data[i] / b->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [a_ptr, b_ptr]() {
+    out->backward_fn = [a, b]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*a_ptr);
-      ensure_grad(*b_ptr);
+      ensure_grad(*a);
+      ensure_grad(*b);
 
       for (std::size_t i = 0; i < self->grad.size(); ++i) {
-        float bv = static_cast<float>(b_ptr->data[i]);
-        if (a_ptr->requires_grad) {
-          a_ptr->grad[i] += self->grad[i] / bv;
+        float bv = static_cast<float>(b->data[i]);
+        if (a->requires_grad) {
+          a->grad[i] += self->grad[i] / bv;
         }
-        if (b_ptr->requires_grad) {
-          float av = static_cast<float>(a_ptr->data[i]);
-          b_ptr->grad[i] += -self->grad[i] * av / (bv * bv);
+        if (b->requires_grad) {
+          float av = static_cast<float>(a->data[i]);
+          b->grad[i] += -self->grad[i] * av / (bv * bv);
         }
       }
     };
@@ -229,25 +204,23 @@ Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> neg(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> neg(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "neg", {x});
 
-  auto out = make_result<T>(x.shape, rg, "neg", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = -x.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = -x->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += -self->grad[i];
+          x->grad[i] += -self->grad[i];
         }
       }
     };
@@ -261,28 +234,26 @@ Tensor<T> neg(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> pow(const Tensor<T>& x, T exponent) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> pow(const std::shared_ptr<Tensor<T>>& x, T exponent) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "pow", {x});
 
-  auto out = make_result<T>(x.shape, rg, "pow", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] =
-        static_cast<T>(std::pow(static_cast<double>(x.data[i]), static_cast<double>(exponent)));
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] =
+        static_cast<T>(std::pow(static_cast<double>(x->data[i]), static_cast<double>(exponent)));
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr, exponent]() {
+    out->backward_fn = [x, exponent]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          float xv = static_cast<float>(x_ptr->data[i]);
+          float xv = static_cast<float>(x->data[i]);
           float exp_f = static_cast<float>(exponent);
-          x_ptr->grad[i] += self->grad[i] * exp_f * static_cast<float>(std::pow(xv, exp_f - 1.f));
+          x->grad[i] += self->grad[i] * exp_f * static_cast<float>(std::pow(xv, exp_f - 1.f));
         }
       }
     };
@@ -296,27 +267,24 @@ Tensor<T> pow(const Tensor<T>& x, T exponent) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> exp(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> exp(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "exp", {x});
 
-  auto out = make_result<T>(x.shape, rg, "exp", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = static_cast<T>(std::exp(static_cast<double>(x.data[i])));
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = static_cast<T>(std::exp(static_cast<double>(x->data[i])));
   }
 
   if (rg) {
-    // Capture output values for backward: d/dx exp(x) = exp(x)
-    auto out_data = out.data;
-    out.backward_fn = [x_ptr, out_data]() {
+    auto out_data = out->data;
+    out->backward_fn = [x, out_data]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += self->grad[i] * static_cast<float>(out_data[i]);
+          x->grad[i] += self->grad[i] * static_cast<float>(out_data[i]);
         }
       }
     };
@@ -330,25 +298,23 @@ Tensor<T> exp(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> log(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> log(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "log", {x});
 
-  auto out = make_result<T>(x.shape, rg, "log", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = static_cast<T>(std::log(static_cast<double>(x.data[i])));
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = static_cast<T>(std::log(static_cast<double>(x->data[i])));
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += self->grad[i] / static_cast<float>(x_ptr->data[i]);
+          x->grad[i] += self->grad[i] / static_cast<float>(x->data[i]);
         }
       }
     };
@@ -362,25 +328,23 @@ Tensor<T> log(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> add_scalar(const Tensor<T>& x, T scalar) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "add_scalar", {x});
 
-  auto out = make_result<T>(x.shape, rg, "add_scalar", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = x.data[i] + scalar;
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = x->data[i] + scalar;
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += self->grad[i];
+          x->grad[i] += self->grad[i];
         }
       }
     };
@@ -394,26 +358,24 @@ Tensor<T> add_scalar(const Tensor<T>& x, T scalar) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> mul_scalar(const Tensor<T>& x, T scalar) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> mul_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "mul_scalar", {x});
 
-  auto out = make_result<T>(x.shape, rg, "mul_scalar", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = x.data[i] * scalar;
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = x->data[i] * scalar;
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr, scalar]() {
+    out->backward_fn = [x, scalar]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         float s = static_cast<float>(scalar);
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += self->grad[i] * s;
+          x->grad[i] += self->grad[i] * s;
         }
       }
     };
@@ -427,61 +389,59 @@ Tensor<T> mul_scalar(const Tensor<T>& x, T scalar) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b) {
-  if (a.shape.size() != 2 || b.shape.size() != 2) {
+std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
+                                  const std::shared_ptr<Tensor<T>>& b) {
+  if (a->shape.size() != 2 || b->shape.size() != 2) {
     throw std::invalid_argument("matmul: both operands must be rank-2");
   }
 
-  const std::size_t m = a.shape[0];
-  const std::size_t k = a.shape[1];
-  if (b.shape[0] != k) {
+  const std::size_t m = a->shape[0];
+  const std::size_t k = a->shape[1];
+  if (b->shape[0] != k) {
     throw std::invalid_argument("matmul: inner dimensions do not match");
   }
-  const std::size_t n = b.shape[1];
+  const std::size_t n = b->shape[1];
 
-  bool rg = a.requires_grad || b.requires_grad;
-  auto a_ptr = make_parent_handle(a);
-  auto b_ptr = make_parent_handle(b);
-
-  auto out = make_result<T>({m, n}, rg, "matmul", {a_ptr, b_ptr});
+  bool rg = a->requires_grad || b->requires_grad;
+  auto out = make_result<T>({m, n}, rg, "matmul", {a, b});
 
   for (std::size_t i = 0; i < m; ++i) {
     for (std::size_t j = 0; j < n; ++j) {
       T acc = T(0);
       for (std::size_t t = 0; t < k; ++t) {
-        acc += a.data[i * k + t] * b.data[t * n + j];
+        acc += a->data[i * k + t] * b->data[t * n + j];
       }
-      out.data[i * n + j] = acc;
+      out->data[i * n + j] = acc;
     }
   }
 
   if (rg) {
-    out.backward_fn = [a_ptr, b_ptr, m, k, n]() {
+    out->backward_fn = [a, b, m, k, n]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*a_ptr);
-      ensure_grad(*b_ptr);
+      ensure_grad(*a);
+      ensure_grad(*b);
 
-      if (a_ptr->requires_grad) {
+      if (a->requires_grad) {
         for (std::size_t i = 0; i < m; ++i) {
           for (std::size_t t = 0; t < k; ++t) {
             float acc = 0.f;
             for (std::size_t j = 0; j < n; ++j) {
-              acc += self->grad[i * n + j] * static_cast<float>(b_ptr->data[t * n + j]);
+              acc += self->grad[i * n + j] * static_cast<float>(b->data[t * n + j]);
             }
-            a_ptr->grad[i * k + t] += acc;
+            a->grad[i * k + t] += acc;
           }
         }
       }
 
-      if (b_ptr->requires_grad) {
+      if (b->requires_grad) {
         for (std::size_t t = 0; t < k; ++t) {
           for (std::size_t j = 0; j < n; ++j) {
             float acc = 0.f;
             for (std::size_t i = 0; i < m; ++i) {
-              acc += static_cast<float>(a_ptr->data[i * k + t]) * self->grad[i * n + j];
+              acc += static_cast<float>(a->data[i * k + t]) * self->grad[i * n + j];
             }
-            b_ptr->grad[t * n + j] += acc;
+            b->grad[t * n + j] += acc;
           }
         }
       }
@@ -496,26 +456,24 @@ Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> relu(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "relu", {x});
 
-  auto out = make_result<T>(x.shape, rg, "relu", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = (x.data[i] > T(0)) ? x.data[i] : T(0);
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = (x->data[i] > T(0)) ? x->data[i] : T(0);
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          if (x_ptr->data[i] > T(0)) {
-            x_ptr->grad[i] += self->grad[i];
+          if (x->data[i] > T(0)) {
+            x->grad[i] += self->grad[i];
           }
         }
       }
@@ -530,29 +488,27 @@ Tensor<T> relu(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> leaky_relu(const Tensor<T>& x, T alpha) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alpha) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "leaky_relu", {x});
 
-  auto out = make_result<T>(x.shape, rg, "leaky_relu", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = (x.data[i] > T(0)) ? x.data[i] : alpha * x.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = (x->data[i] > T(0)) ? x->data[i] : alpha * x->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr, alpha]() {
+    out->backward_fn = [x, alpha]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         float a = static_cast<float>(alpha);
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          if (x_ptr->data[i] > T(0)) {
-            x_ptr->grad[i] += self->grad[i];
+          if (x->data[i] > T(0)) {
+            x->grad[i] += self->grad[i];
           } else {
-            x_ptr->grad[i] += self->grad[i] * a;
+            x->grad[i] += self->grad[i] * a;
           }
         }
       }
@@ -567,27 +523,25 @@ Tensor<T> leaky_relu(const Tensor<T>& x, T alpha) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> sigmoid(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "sigmoid", {x});
 
-  auto out = make_result<T>(x.shape, rg, "sigmoid", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = static_cast<T>(1.0 / (1.0 + std::exp(-static_cast<double>(x.data[i]))));
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = static_cast<T>(1.0 / (1.0 + std::exp(-static_cast<double>(x->data[i]))));
   }
 
   if (rg) {
-    auto out_data = out.data;
-    out.backward_fn = [x_ptr, out_data]() {
+    auto out_data = out->data;
+    out->backward_fn = [x, out_data]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
           float s = static_cast<float>(out_data[i]);
-          x_ptr->grad[i] += self->grad[i] * s * (1.f - s);
+          x->grad[i] += self->grad[i] * s * (1.f - s);
         }
       }
     };
@@ -601,27 +555,25 @@ Tensor<T> sigmoid(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> tanh_op(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "tanh", {x});
 
-  auto out = make_result<T>(x.shape, rg, "tanh", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = static_cast<T>(std::tanh(static_cast<double>(x.data[i])));
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = static_cast<T>(std::tanh(static_cast<double>(x->data[i])));
   }
 
   if (rg) {
-    auto out_data = out.data;
-    out.backward_fn = [x_ptr, out_data]() {
+    auto out_data = out->data;
+    out->backward_fn = [x, out_data]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
           float t = static_cast<float>(out_data[i]);
-          x_ptr->grad[i] += self->grad[i] * (1.f - t * t);
+          x->grad[i] += self->grad[i] * (1.f - t * t);
         }
       }
     };
@@ -635,76 +587,70 @@ Tensor<T> tanh_op(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> softmax(const Tensor<T>& x, std::size_t dim) {
-  if (x.shape.size() != 2) {
+std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
+  if (x->shape.size() != 2) {
     throw std::invalid_argument("softmax: only rank-2 tensors are supported");
   }
   if (dim > 1) {
     throw std::invalid_argument("softmax: dim must be 0 or 1 for rank-2 tensors");
   }
 
-  const std::size_t rows = x.shape[0];
-  const std::size_t cols = x.shape[1];
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
-
-  auto out = make_result<T>(x.shape, rg, "softmax", {x_ptr});
+  const std::size_t rows = x->shape[0];
+  const std::size_t cols = x->shape[1];
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(x->shape, rg, "softmax", {x});
 
   if (dim == 1) {
-    // Softmax along columns (each row is a distribution)
     for (std::size_t r = 0; r < rows; ++r) {
-      // Numerical stability: subtract max
-      T max_val = x.data[r * cols];
+      T max_val = x->data[r * cols];
       for (std::size_t c = 1; c < cols; ++c) {
-        if (x.data[r * cols + c] > max_val) max_val = x.data[r * cols + c];
+        if (x->data[r * cols + c] > max_val) max_val = x->data[r * cols + c];
       }
       T sum_exp = T(0);
       for (std::size_t c = 0; c < cols; ++c) {
-        out.data[r * cols + c] =
-            static_cast<T>(std::exp(static_cast<double>(x.data[r * cols + c] - max_val)));
-        sum_exp += out.data[r * cols + c];
+        out->data[r * cols + c] =
+            static_cast<T>(std::exp(static_cast<double>(x->data[r * cols + c] - max_val)));
+        sum_exp += out->data[r * cols + c];
       }
       for (std::size_t c = 0; c < cols; ++c) {
-        out.data[r * cols + c] /= sum_exp;
+        out->data[r * cols + c] /= sum_exp;
       }
     }
   } else {
-    // dim == 0: softmax along rows (each column is a distribution)
     for (std::size_t c = 0; c < cols; ++c) {
-      T max_val = x.data[c];
+      T max_val = x->data[c];
       for (std::size_t r = 1; r < rows; ++r) {
-        if (x.data[r * cols + c] > max_val) max_val = x.data[r * cols + c];
+        if (x->data[r * cols + c] > max_val) max_val = x->data[r * cols + c];
       }
       T sum_exp = T(0);
       for (std::size_t r = 0; r < rows; ++r) {
-        out.data[r * cols + c] =
-            static_cast<T>(std::exp(static_cast<double>(x.data[r * cols + c] - max_val)));
-        sum_exp += out.data[r * cols + c];
+        out->data[r * cols + c] =
+            static_cast<T>(std::exp(static_cast<double>(x->data[r * cols + c] - max_val)));
+        sum_exp += out->data[r * cols + c];
       }
       for (std::size_t r = 0; r < rows; ++r) {
-        out.data[r * cols + c] /= sum_exp;
+        out->data[r * cols + c] /= sum_exp;
       }
     }
   }
 
   if (rg) {
-    auto out_data = out.data;
-    out.backward_fn = [x_ptr, out_data, rows, cols, dim]() {
+    auto out_data = out->data;
+    out->backward_fn = [x, out_data, rows, cols, dim]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         if (dim == 1) {
           for (std::size_t r = 0; r < rows; ++r) {
-            // dot = sum_j(grad[j] * s[j])
             float dot = 0.f;
             for (std::size_t c = 0; c < cols; ++c) {
               dot += self->grad[r * cols + c] * static_cast<float>(out_data[r * cols + c]);
             }
             for (std::size_t c = 0; c < cols; ++c) {
               float s = static_cast<float>(out_data[r * cols + c]);
-              x_ptr->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
+              x->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
             }
           }
         } else {
@@ -715,7 +661,7 @@ Tensor<T> softmax(const Tensor<T>& x, std::size_t dim) {
             }
             for (std::size_t r = 0; r < rows; ++r) {
               float s = static_cast<float>(out_data[r * cols + c]);
-              x_ptr->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
+              x->grad[r * cols + c] += s * (self->grad[r * cols + c] - dot);
             }
           }
         }
@@ -731,34 +677,32 @@ Tensor<T> softmax(const Tensor<T>& x, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> transpose(const Tensor<T>& x) {
-  if (x.shape.size() != 2) {
+std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x) {
+  if (x->shape.size() != 2) {
     throw std::invalid_argument("transpose: only rank-2 tensors are currently supported");
   }
 
-  const std::size_t rows = x.shape[0];
-  const std::size_t cols = x.shape[1];
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
-
-  auto out = make_result<T>({cols, rows}, rg, "transpose", {x_ptr});
+  const std::size_t rows = x->shape[0];
+  const std::size_t cols = x->shape[1];
+  bool rg = x->requires_grad;
+  auto out = make_result<T>({cols, rows}, rg, "transpose", {x});
 
   for (std::size_t r = 0; r < rows; ++r) {
     for (std::size_t c = 0; c < cols; ++c) {
-      out.data[c * rows + r] = x.data[r * cols + c];
+      out->data[c * rows + r] = x->data[r * cols + c];
     }
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr, rows, cols]() {
+    out->backward_fn = [x, rows, cols]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t r = 0; r < rows; ++r) {
           for (std::size_t c = 0; c < cols; ++c) {
-            x_ptr->grad[r * cols + c] += self->grad[c * rows + r];
+            x->grad[r * cols + c] += self->grad[c * rows + r];
           }
         }
       }
@@ -773,30 +717,27 @@ Tensor<T> transpose(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> reshape(const Tensor<T>& x, Shape new_shape) {
-  if (numel(new_shape) != numel(x.shape)) {
+std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape) {
+  if (numel(new_shape) != numel(x->shape)) {
     throw std::invalid_argument("reshape: numel mismatch");
   }
 
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
-  Shape orig_shape = x.shape;
+  bool rg = x->requires_grad;
+  auto out = make_result<T>(std::move(new_shape), rg, "reshape", {x});
 
-  auto out = make_result<T>(std::move(new_shape), rg, "reshape", {x_ptr});
-
-  for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = x.data[i];
+  for (std::size_t i = 0; i < out->data.size(); ++i) {
+    out->data[i] = x->data[i];
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          x_ptr->grad[i] += self->grad[i];
+          x->grad[i] += self->grad[i];
         }
       }
     };
@@ -810,8 +751,8 @@ Tensor<T> reshape(const Tensor<T>& x, Shape new_shape) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> flatten(const Tensor<T>& x) {
-  return reshape(x, {numel(x.shape)});
+std::shared_ptr<Tensor<T>> flatten(const std::shared_ptr<Tensor<T>>& x) {
+  return reshape(x, {numel(x->shape)});
 }
 
 // =============================================================================
@@ -819,19 +760,19 @@ Tensor<T> flatten(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim) {
-  if (dim >= x.shape.size()) {
+std::shared_ptr<Tensor<T>> squeeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
+  if (dim >= x->shape.size()) {
     throw std::invalid_argument("squeeze: dim out of range");
   }
-  if (x.shape[dim] != 1) {
+  if (x->shape[dim] != 1) {
     throw std::invalid_argument("squeeze: dimension at dim is not size 1");
   }
 
   Shape new_shape;
-  for (std::size_t i = 0; i < x.shape.size(); ++i) {
-    if (i != dim) new_shape.push_back(x.shape[i]);
+  for (std::size_t i = 0; i < x->shape.size(); ++i) {
+    if (i != dim) new_shape.push_back(x->shape[i]);
   }
-  if (new_shape.empty()) new_shape.push_back(1);  // 0D -> scalar {1}
+  if (new_shape.empty()) new_shape.push_back(1);
 
   return reshape(x, std::move(new_shape));
 }
@@ -841,12 +782,12 @@ Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim) {
-  if (dim > x.shape.size()) {
+std::shared_ptr<Tensor<T>> unsqueeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
+  if (dim > x->shape.size()) {
     throw std::invalid_argument("unsqueeze: dim out of range");
   }
 
-  Shape new_shape = x.shape;
+  Shape new_shape = x->shape;
   new_shape.insert(new_shape.begin() + static_cast<std::ptrdiff_t>(dim), 1);
 
   return reshape(x, std::move(new_shape));
@@ -857,11 +798,12 @@ Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
+std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& tensors,
+                               std::size_t dim) {
   if (tensors.empty()) {
     throw std::invalid_argument("cat: empty tensor list");
   }
-  for (auto* t : tensors) {
+  for (const auto& t : tensors) {
     if (!t) throw std::invalid_argument("cat: null tensor pointer");
   }
   if (tensors[0]->shape.size() != 2) {
@@ -872,7 +814,6 @@ Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
   }
 
   const auto& ref_shape = tensors[0]->shape;
-  // Validate shapes match except along cat dimension
   for (std::size_t t = 1; t < tensors.size(); ++t) {
     if (tensors[t]->shape.size() != 2) {
       throw std::invalid_argument("cat: all tensors must be rank-2");
@@ -884,42 +825,35 @@ Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
     }
   }
 
-  // Compute output shape
   std::size_t cat_size = 0;
-  for (auto* t : tensors) cat_size += t->shape[dim];
+  for (const auto& t : tensors) cat_size += t->shape[dim];
 
   Shape out_shape = ref_shape;
   out_shape[dim] = cat_size;
 
-  // Create parent handles
   bool rg = false;
-  std::vector<std::shared_ptr<Tensor<T>>> parent_ptrs;
-  for (auto* t : tensors) {
+  for (const auto& t : tensors) {
     rg = rg || t->requires_grad;
-    parent_ptrs.push_back(make_parent_handle(*t));
   }
 
-  auto out = make_result<T>(out_shape, rg, "cat", parent_ptrs);
+  auto out = make_result<T>(out_shape, rg, "cat", tensors);
 
-  // Fill output data
   if (dim == 0) {
-    // Concatenating rows: just append data sequentially
     std::size_t offset = 0;
-    for (auto* t : tensors) {
+    for (const auto& t : tensors) {
       for (std::size_t i = 0; i < t->data.size(); ++i) {
-        out.data[offset + i] = t->data[i];
+        out->data[offset + i] = t->data[i];
       }
       offset += t->data.size();
     }
   } else {
-    // dim == 1: interleave columns
     const std::size_t out_cols = out_shape[1];
     const std::size_t nrows = ref_shape[0];
     for (std::size_t r = 0; r < nrows; ++r) {
       std::size_t col_offset = 0;
-      for (auto* t : tensors) {
+      for (const auto& t : tensors) {
         for (std::size_t c = 0; c < t->shape[1]; ++c) {
-          out.data[r * out_cols + col_offset + c] = t->data[r * t->shape[1] + c];
+          out->data[r * out_cols + col_offset + c] = t->data[r * t->shape[1] + c];
         }
         col_offset += t->shape[1];
       }
@@ -927,36 +861,35 @@ Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
   }
 
   if (rg) {
-    // Capture shapes for backward
     std::vector<Shape> input_shapes;
-    for (auto* t : tensors) input_shapes.push_back(t->shape);
+    for (const auto& t : tensors) input_shapes.push_back(t->shape);
 
-    out.backward_fn = [parent_ptrs, input_shapes, dim]() {
+    out->backward_fn = [tensors, input_shapes, dim]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
 
-      for (auto& p : parent_ptrs) ensure_grad(*p);
+      for (auto& p : tensors) ensure_grad(*p);
 
       if (dim == 0) {
         std::size_t offset = 0;
-        for (std::size_t t = 0; t < parent_ptrs.size(); ++t) {
-          if (parent_ptrs[t]->requires_grad) {
-            std::size_t n = parent_ptrs[t]->data.size();
+        for (std::size_t t = 0; t < tensors.size(); ++t) {
+          if (tensors[t]->requires_grad) {
+            std::size_t n = tensors[t]->data.size();
             for (std::size_t i = 0; i < n; ++i) {
-              parent_ptrs[t]->grad[i] += self->grad[offset + i];
+              tensors[t]->grad[i] += self->grad[offset + i];
             }
           }
-          offset += parent_ptrs[t]->data.size();
+          offset += tensors[t]->data.size();
         }
       } else {
         const std::size_t nrows = input_shapes[0][0];
         const std::size_t out_cols = self->grad.size() / nrows;
         for (std::size_t r = 0; r < nrows; ++r) {
           std::size_t col_offset = 0;
-          for (std::size_t t = 0; t < parent_ptrs.size(); ++t) {
-            if (parent_ptrs[t]->requires_grad) {
+          for (std::size_t t = 0; t < tensors.size(); ++t) {
+            if (tensors[t]->requires_grad) {
               for (std::size_t c = 0; c < input_shapes[t][1]; ++c) {
-                parent_ptrs[t]->grad[r * input_shapes[t][1] + c] +=
+                tensors[t]->grad[r * input_shapes[t][1] + c] +=
                     self->grad[r * out_cols + col_offset + c];
               }
             }
@@ -975,28 +908,26 @@ Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> reduce(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
-
-  auto out = make_result<T>({1}, rg, "reduce", {x_ptr});
+std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  auto out = make_result<T>({1}, rg, "reduce", {x});
 
   T sum = T(0);
-  for (std::size_t i = 0; i < x.data.size(); ++i) {
-    sum += x.data[i];
+  for (std::size_t i = 0; i < x->data.size(); ++i) {
+    sum += x->data[i];
   }
-  out.data[0] = sum;
+  out->data[0] = sum;
 
   if (rg) {
-    out.backward_fn = [x_ptr]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         float g = self->grad[0];
-        for (std::size_t i = 0; i < x_ptr->grad.size(); ++i) {
-          x_ptr->grad[i] += g;
+        for (std::size_t i = 0; i < x->grad.size(); ++i) {
+          x->grad[i] += g;
         }
       }
     };
@@ -1010,29 +941,27 @@ Tensor<T> reduce(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> mean(const Tensor<T>& x) {
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
-  std::size_t n = x.data.size();
-
-  auto out = make_result<T>({1}, rg, "mean", {x_ptr});
+std::shared_ptr<Tensor<T>> mean(const std::shared_ptr<Tensor<T>>& x) {
+  bool rg = x->requires_grad;
+  std::size_t n = x->data.size();
+  auto out = make_result<T>({1}, rg, "mean", {x});
 
   T sum = T(0);
   for (std::size_t i = 0; i < n; ++i) {
-    sum += x.data[i];
+    sum += x->data[i];
   }
-  out.data[0] = static_cast<T>(static_cast<double>(sum) / static_cast<double>(n));
+  out->data[0] = static_cast<T>(static_cast<double>(sum) / static_cast<double>(n));
 
   if (rg) {
-    out.backward_fn = [x_ptr, n]() {
+    out->backward_fn = [x, n]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         float g = self->grad[0] / static_cast<float>(n);
-        for (std::size_t i = 0; i < x_ptr->grad.size(); ++i) {
-          x_ptr->grad[i] += g;
+        for (std::size_t i = 0; i < x->grad.size(); ++i) {
+          x->grad[i] += g;
         }
       }
     };
@@ -1046,33 +975,31 @@ Tensor<T> mean(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> max(const Tensor<T>& x) {
-  if (x.data.empty()) {
+std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x) {
+  if (x->data.empty()) {
     throw std::invalid_argument("max: empty tensor");
   }
 
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+  bool rg = x->requires_grad;
+  auto out = make_result<T>({1}, rg, "max", {x});
 
-  auto out = make_result<T>({1}, rg, "max", {x_ptr});
-
-  T max_val = x.data[0];
-  for (std::size_t i = 1; i < x.data.size(); ++i) {
-    if (x.data[i] > max_val) max_val = x.data[i];
+  T max_val = x->data[0];
+  for (std::size_t i = 1; i < x->data.size(); ++i) {
+    if (x->data[i] > max_val) max_val = x->data[i];
   }
-  out.data[0] = max_val;
+  out->data[0] = max_val;
 
   if (rg) {
-    out.backward_fn = [x_ptr, max_val]() {
+    out->backward_fn = [x, max_val]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         float g = self->grad[0];
-        for (std::size_t i = 0; i < x_ptr->grad.size(); ++i) {
-          if (x_ptr->data[i] == max_val) {
-            x_ptr->grad[i] += g;
+        for (std::size_t i = 0; i < x->grad.size(); ++i) {
+          if (x->data[i] == max_val) {
+            x->grad[i] += g;
           }
         }
       }
@@ -1087,18 +1014,17 @@ Tensor<T> max(const Tensor<T>& x) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim) {
-  if (x.shape.size() != 2) {
+std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::size_t dim) {
+  if (x->shape.size() != 2) {
     throw std::invalid_argument("sum_dim: only rank-2 tensors are supported");
   }
   if (dim > 1) {
     throw std::invalid_argument("sum_dim: dim must be 0 or 1");
   }
 
-  const std::size_t rows = x.shape[0];
-  const std::size_t cols = x.shape[1];
-  bool rg = x.requires_grad;
-  auto x_ptr = make_parent_handle(x);
+  const std::size_t rows = x->shape[0];
+  const std::size_t cols = x->shape[1];
+  bool rg = x->requires_grad;
 
   Shape out_shape;
   if (dim == 0) {
@@ -1107,47 +1033,43 @@ Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim) {
     out_shape = {rows, 1};
   }
 
-  auto out = make_result<T>(out_shape, rg, "sum_dim", {x_ptr});
+  auto out = make_result<T>(out_shape, rg, "sum_dim", {x});
 
   if (dim == 0) {
-    // Sum down rows -> shape {1, cols}
     for (std::size_t c = 0; c < cols; ++c) {
       T sum = T(0);
       for (std::size_t r = 0; r < rows; ++r) {
-        sum += x.data[r * cols + c];
+        sum += x->data[r * cols + c];
       }
-      out.data[c] = sum;
+      out->data[c] = sum;
     }
   } else {
-    // Sum across columns -> shape {rows, 1}
     for (std::size_t r = 0; r < rows; ++r) {
       T sum = T(0);
       for (std::size_t c = 0; c < cols; ++c) {
-        sum += x.data[r * cols + c];
+        sum += x->data[r * cols + c];
       }
-      out.data[r] = sum;
+      out->data[r] = sum;
     }
   }
 
   if (rg) {
-    out.backward_fn = [x_ptr, rows, cols, dim]() {
+    out->backward_fn = [x, rows, cols, dim]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*x_ptr);
+      ensure_grad(*x);
 
-      if (x_ptr->requires_grad) {
+      if (x->requires_grad) {
         if (dim == 0) {
-          // Broadcast grad {1, cols} -> {rows, cols}
           for (std::size_t r = 0; r < rows; ++r) {
             for (std::size_t c = 0; c < cols; ++c) {
-              x_ptr->grad[r * cols + c] += self->grad[c];
+              x->grad[r * cols + c] += self->grad[c];
             }
           }
         } else {
-          // Broadcast grad {rows, 1} -> {rows, cols}
           for (std::size_t r = 0; r < rows; ++r) {
             for (std::size_t c = 0; c < cols; ++c) {
-              x_ptr->grad[r * cols + c] += self->grad[r];
+              x->grad[r * cols + c] += self->grad[r];
             }
           }
         }
@@ -1163,43 +1085,40 @@ Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target) {
-  if (pred.shape != target.shape) {
+std::shared_ptr<Tensor<T>> mse_loss(const std::shared_ptr<Tensor<T>>& pred,
+                                    const std::shared_ptr<Tensor<T>>& target) {
+  if (pred->shape != target->shape) {
     throw std::invalid_argument("mse_loss: shape mismatch");
   }
 
-  bool rg = pred.requires_grad || target.requires_grad;
-  auto pred_ptr = make_parent_handle(pred);
-  auto target_ptr = make_parent_handle(target);
-  std::size_t n = pred.data.size();
-
-  auto out = make_result<T>({1}, rg, "mse_loss", {pred_ptr, target_ptr});
+  bool rg = pred->requires_grad || target->requires_grad;
+  std::size_t n = pred->data.size();
+  auto out = make_result<T>({1}, rg, "mse_loss", {pred, target});
 
   double sum = 0.0;
   for (std::size_t i = 0; i < n; ++i) {
-    double diff = static_cast<double>(pred.data[i]) - static_cast<double>(target.data[i]);
+    double diff = static_cast<double>(pred->data[i]) - static_cast<double>(target->data[i]);
     sum += diff * diff;
   }
-  out.data[0] = static_cast<T>(sum / static_cast<double>(n));
+  out->data[0] = static_cast<T>(sum / static_cast<double>(n));
 
   if (rg) {
-    out.backward_fn = [pred_ptr, target_ptr, n]() {
+    out->backward_fn = [pred, target, n]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*pred_ptr);
-      ensure_grad(*target_ptr);
+      ensure_grad(*pred);
+      ensure_grad(*target);
 
       float g = self->grad[0];
       float inv_n = 1.f / static_cast<float>(n);
 
       for (std::size_t i = 0; i < n; ++i) {
-        float diff =
-            static_cast<float>(pred_ptr->data[i]) - static_cast<float>(target_ptr->data[i]);
-        if (pred_ptr->requires_grad) {
-          pred_ptr->grad[i] += g * 2.f * diff * inv_n;
+        float diff = static_cast<float>(pred->data[i]) - static_cast<float>(target->data[i]);
+        if (pred->requires_grad) {
+          pred->grad[i] += g * 2.f * diff * inv_n;
         }
-        if (target_ptr->requires_grad) {
-          target_ptr->grad[i] += g * -2.f * diff * inv_n;
+        if (target->requires_grad) {
+          target->grad[i] += g * -2.f * diff * inv_n;
         }
       }
     };
@@ -1213,65 +1132,59 @@ Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets) {
-  if (logits.shape.size() != 2) {
+std::shared_ptr<Tensor<T>> cross_entropy_loss(const std::shared_ptr<Tensor<T>>& logits,
+                                              const std::shared_ptr<Tensor<int>>& targets) {
+  if (logits->shape.size() != 2) {
     throw std::invalid_argument("cross_entropy_loss: logits must be rank-2 {N, C}");
   }
-  if (targets.shape.size() != 1 || targets.shape[0] != logits.shape[0]) {
+  if (targets->shape.size() != 1 || targets->shape[0] != logits->shape[0]) {
     throw std::invalid_argument("cross_entropy_loss: targets must have shape {N}");
   }
 
-  const std::size_t batch = logits.shape[0];
-  const std::size_t classes = logits.shape[1];
-  bool rg = logits.requires_grad;
-  auto logits_ptr = make_parent_handle(logits);
+  const std::size_t batch = logits->shape[0];
+  const std::size_t classes = logits->shape[1];
+  bool rg = logits->requires_grad;
+  auto out = make_result<T>({1}, rg, "cross_entropy_loss", {logits});
 
-  auto out = make_result<T>({1}, rg, "cross_entropy_loss", {logits_ptr});
-
-  // Forward: loss = mean_i( -logits[i][t_i] + log(sum_j(exp(logits[i][j]))) )
-  // Use log-sum-exp trick for numerical stability
   double total_loss = 0.0;
   for (std::size_t i = 0; i < batch; ++i) {
-    int ti = targets.data[i];
-    // Find max for numerical stability
-    double max_val = static_cast<double>(logits.data[i * classes]);
+    int ti = targets->data[i];
+    double max_val = static_cast<double>(logits->data[i * classes]);
     for (std::size_t j = 1; j < classes; ++j) {
-      double v = static_cast<double>(logits.data[i * classes + j]);
+      double v = static_cast<double>(logits->data[i * classes + j]);
       if (v > max_val) max_val = v;
     }
     double log_sum_exp = 0.0;
     for (std::size_t j = 0; j < classes; ++j) {
-      log_sum_exp += std::exp(static_cast<double>(logits.data[i * classes + j]) - max_val);
+      log_sum_exp += std::exp(static_cast<double>(logits->data[i * classes + j]) - max_val);
     }
     log_sum_exp = max_val + std::log(log_sum_exp);
-    total_loss += -static_cast<double>(logits.data[i * classes + ti]) + log_sum_exp;
+    total_loss += -static_cast<double>(logits->data[i * classes + ti]) + log_sum_exp;
   }
-  out.data[0] = static_cast<T>(total_loss / static_cast<double>(batch));
+  out->data[0] = static_cast<T>(total_loss / static_cast<double>(batch));
 
   if (rg) {
-    // Capture targets data
-    auto target_data = targets.data;
-    out.backward_fn = [logits_ptr, target_data, batch, classes]() {
+    auto target_data = targets->data;
+    out->backward_fn = [logits, target_data, batch, classes]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
-      ensure_grad(*logits_ptr);
+      ensure_grad(*logits);
 
-      if (logits_ptr->requires_grad) {
+      if (logits->requires_grad) {
         float g = self->grad[0];
         float inv_n = 1.f / static_cast<float>(batch);
 
         for (std::size_t i = 0; i < batch; ++i) {
-          // Compute softmax for this sample
-          double max_val = static_cast<double>(logits_ptr->data[i * classes]);
+          double max_val = static_cast<double>(logits->data[i * classes]);
           for (std::size_t j = 1; j < classes; ++j) {
-            double v = static_cast<double>(logits_ptr->data[i * classes + j]);
+            double v = static_cast<double>(logits->data[i * classes + j]);
             if (v > max_val) max_val = v;
           }
           double sum_exp = 0.0;
           std::vector<float> sm(classes);
           for (std::size_t j = 0; j < classes; ++j) {
             sm[j] = static_cast<float>(
-                std::exp(static_cast<double>(logits_ptr->data[i * classes + j]) - max_val));
+                std::exp(static_cast<double>(logits->data[i * classes + j]) - max_val));
             sum_exp += sm[j];
           }
           for (std::size_t j = 0; j < classes; ++j) {
@@ -1281,7 +1194,7 @@ Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets
           int ti = target_data[i];
           for (std::size_t j = 0; j < classes; ++j) {
             float indicator = (static_cast<int>(j) == ti) ? 1.f : 0.f;
-            logits_ptr->grad[i * classes + j] += g * (sm[j] - indicator) * inv_n;
+            logits->grad[i * classes + j] += g * (sm[j] - indicator) * inv_n;
           }
         }
       }
@@ -1296,121 +1209,149 @@ Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets
 // =============================================================================
 
 // --- Arithmetic ---
-template Tensor<float> add(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> add(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> add(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> add(const std::shared_ptr<Tensor<float>>&,
+                                            const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> add(const std::shared_ptr<Tensor<double>>&,
+                                             const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> add(const std::shared_ptr<Tensor<int>>&,
+                                          const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> sub(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> sub(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> sub(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> sub(const std::shared_ptr<Tensor<float>>&,
+                                            const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> sub(const std::shared_ptr<Tensor<double>>&,
+                                             const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> sub(const std::shared_ptr<Tensor<int>>&,
+                                          const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> mul(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> mul(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> mul(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> mul(const std::shared_ptr<Tensor<float>>&,
+                                            const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> mul(const std::shared_ptr<Tensor<double>>&,
+                                             const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> mul(const std::shared_ptr<Tensor<int>>&,
+                                          const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> div(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> div(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> div(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> div(const std::shared_ptr<Tensor<float>>&,
+                                            const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> div(const std::shared_ptr<Tensor<double>>&,
+                                             const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> div(const std::shared_ptr<Tensor<int>>&,
+                                          const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> neg(const Tensor<float>&);
-template Tensor<double> neg(const Tensor<double>&);
-template Tensor<int> neg(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> neg(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> neg(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> neg(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> pow(const Tensor<float>&, float);
-template Tensor<double> pow(const Tensor<double>&, double);
-template Tensor<int> pow(const Tensor<int>&, int);
+template std::shared_ptr<Tensor<float>> pow(const std::shared_ptr<Tensor<float>>&, float);
+template std::shared_ptr<Tensor<double>> pow(const std::shared_ptr<Tensor<double>>&, double);
+template std::shared_ptr<Tensor<int>> pow(const std::shared_ptr<Tensor<int>>&, int);
 
-template Tensor<float> exp(const Tensor<float>&);
-template Tensor<double> exp(const Tensor<double>&);
-template Tensor<int> exp(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> exp(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> exp(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> exp(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> log(const Tensor<float>&);
-template Tensor<double> log(const Tensor<double>&);
-template Tensor<int> log(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> log(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> log(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> log(const std::shared_ptr<Tensor<int>>&);
 
 // --- Scalar-Tensor ---
-template Tensor<float> add_scalar(const Tensor<float>&, float);
-template Tensor<double> add_scalar(const Tensor<double>&, double);
-template Tensor<int> add_scalar(const Tensor<int>&, int);
+template std::shared_ptr<Tensor<float>> add_scalar(const std::shared_ptr<Tensor<float>>&, float);
+template std::shared_ptr<Tensor<double>> add_scalar(const std::shared_ptr<Tensor<double>>&, double);
+template std::shared_ptr<Tensor<int>> add_scalar(const std::shared_ptr<Tensor<int>>&, int);
 
-template Tensor<float> mul_scalar(const Tensor<float>&, float);
-template Tensor<double> mul_scalar(const Tensor<double>&, double);
-template Tensor<int> mul_scalar(const Tensor<int>&, int);
+template std::shared_ptr<Tensor<float>> mul_scalar(const std::shared_ptr<Tensor<float>>&, float);
+template std::shared_ptr<Tensor<double>> mul_scalar(const std::shared_ptr<Tensor<double>>&, double);
+template std::shared_ptr<Tensor<int>> mul_scalar(const std::shared_ptr<Tensor<int>>&, int);
 
 // --- Matrix ---
-template Tensor<float> matmul(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> matmul(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> matmul(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> matmul(const std::shared_ptr<Tensor<float>>&,
+                                               const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> matmul(const std::shared_ptr<Tensor<double>>&,
+                                                const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> matmul(const std::shared_ptr<Tensor<int>>&,
+                                             const std::shared_ptr<Tensor<int>>&);
 
 // --- Activations ---
-template Tensor<float> relu(const Tensor<float>&);
-template Tensor<double> relu(const Tensor<double>&);
-template Tensor<int> relu(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> relu(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> relu(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> relu(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> leaky_relu(const Tensor<float>&, float);
-template Tensor<double> leaky_relu(const Tensor<double>&, double);
-template Tensor<int> leaky_relu(const Tensor<int>&, int);
+template std::shared_ptr<Tensor<float>> leaky_relu(const std::shared_ptr<Tensor<float>>&, float);
+template std::shared_ptr<Tensor<double>> leaky_relu(const std::shared_ptr<Tensor<double>>&, double);
+template std::shared_ptr<Tensor<int>> leaky_relu(const std::shared_ptr<Tensor<int>>&, int);
 
-template Tensor<float> sigmoid(const Tensor<float>&);
-template Tensor<double> sigmoid(const Tensor<double>&);
-template Tensor<int> sigmoid(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> sigmoid(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> sigmoid(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> sigmoid(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> tanh_op(const Tensor<float>&);
-template Tensor<double> tanh_op(const Tensor<double>&);
-template Tensor<int> tanh_op(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> tanh_op(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> tanh_op(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> tanh_op(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> softmax(const Tensor<float>&, std::size_t);
-template Tensor<double> softmax(const Tensor<double>&, std::size_t);
-template Tensor<int> softmax(const Tensor<int>&, std::size_t);
+template std::shared_ptr<Tensor<float>> softmax(const std::shared_ptr<Tensor<float>>&, std::size_t);
+template std::shared_ptr<Tensor<double>> softmax(const std::shared_ptr<Tensor<double>>&,
+                                                 std::size_t);
+template std::shared_ptr<Tensor<int>> softmax(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
 // --- Shape / View ---
-template Tensor<float> transpose(const Tensor<float>&);
-template Tensor<double> transpose(const Tensor<double>&);
-template Tensor<int> transpose(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> transpose(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> transpose(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> transpose(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> reshape(const Tensor<float>&, Shape);
-template Tensor<double> reshape(const Tensor<double>&, Shape);
-template Tensor<int> reshape(const Tensor<int>&, Shape);
+template std::shared_ptr<Tensor<float>> reshape(const std::shared_ptr<Tensor<float>>&, Shape);
+template std::shared_ptr<Tensor<double>> reshape(const std::shared_ptr<Tensor<double>>&, Shape);
+template std::shared_ptr<Tensor<int>> reshape(const std::shared_ptr<Tensor<int>>&, Shape);
 
-template Tensor<float> flatten(const Tensor<float>&);
-template Tensor<double> flatten(const Tensor<double>&);
-template Tensor<int> flatten(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> flatten(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> flatten(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> flatten(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> squeeze(const Tensor<float>&, std::size_t);
-template Tensor<double> squeeze(const Tensor<double>&, std::size_t);
-template Tensor<int> squeeze(const Tensor<int>&, std::size_t);
+template std::shared_ptr<Tensor<float>> squeeze(const std::shared_ptr<Tensor<float>>&, std::size_t);
+template std::shared_ptr<Tensor<double>> squeeze(const std::shared_ptr<Tensor<double>>&,
+                                                 std::size_t);
+template std::shared_ptr<Tensor<int>> squeeze(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
-template Tensor<float> unsqueeze(const Tensor<float>&, std::size_t);
-template Tensor<double> unsqueeze(const Tensor<double>&, std::size_t);
-template Tensor<int> unsqueeze(const Tensor<int>&, std::size_t);
+template std::shared_ptr<Tensor<float>> unsqueeze(const std::shared_ptr<Tensor<float>>&,
+                                                  std::size_t);
+template std::shared_ptr<Tensor<double>> unsqueeze(const std::shared_ptr<Tensor<double>>&,
+                                                   std::size_t);
+template std::shared_ptr<Tensor<int>> unsqueeze(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
-template Tensor<float> cat(const std::vector<const Tensor<float>*>&, std::size_t);
-template Tensor<double> cat(const std::vector<const Tensor<double>*>&, std::size_t);
-template Tensor<int> cat(const std::vector<const Tensor<int>*>&, std::size_t);
+template std::shared_ptr<Tensor<float>> cat(const std::vector<std::shared_ptr<Tensor<float>>>&,
+                                            std::size_t);
+template std::shared_ptr<Tensor<double>> cat(const std::vector<std::shared_ptr<Tensor<double>>>&,
+                                             std::size_t);
+template std::shared_ptr<Tensor<int>> cat(const std::vector<std::shared_ptr<Tensor<int>>>&,
+                                          std::size_t);
 
 // --- Reductions ---
-template Tensor<float> reduce(const Tensor<float>&);
-template Tensor<double> reduce(const Tensor<double>&);
-template Tensor<int> reduce(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> reduce(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> reduce(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> reduce(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> mean(const Tensor<float>&);
-template Tensor<double> mean(const Tensor<double>&);
-template Tensor<int> mean(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> mean(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> mean(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> mean(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> max(const Tensor<float>&);
-template Tensor<double> max(const Tensor<double>&);
-template Tensor<int> max(const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> max(const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> max(const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> max(const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> sum_dim(const Tensor<float>&, std::size_t);
-template Tensor<double> sum_dim(const Tensor<double>&, std::size_t);
-template Tensor<int> sum_dim(const Tensor<int>&, std::size_t);
+template std::shared_ptr<Tensor<float>> sum_dim(const std::shared_ptr<Tensor<float>>&, std::size_t);
+template std::shared_ptr<Tensor<double>> sum_dim(const std::shared_ptr<Tensor<double>>&,
+                                                 std::size_t);
+template std::shared_ptr<Tensor<int>> sum_dim(const std::shared_ptr<Tensor<int>>&, std::size_t);
 
 // --- Loss Functions ---
-template Tensor<float> mse_loss(const Tensor<float>&, const Tensor<float>&);
-template Tensor<double> mse_loss(const Tensor<double>&, const Tensor<double>&);
-template Tensor<int> mse_loss(const Tensor<int>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> mse_loss(const std::shared_ptr<Tensor<float>>&,
+                                                 const std::shared_ptr<Tensor<float>>&);
+template std::shared_ptr<Tensor<double>> mse_loss(const std::shared_ptr<Tensor<double>>&,
+                                                  const std::shared_ptr<Tensor<double>>&);
+template std::shared_ptr<Tensor<int>> mse_loss(const std::shared_ptr<Tensor<int>>&,
+                                               const std::shared_ptr<Tensor<int>>&);
 
-template Tensor<float> cross_entropy_loss(const Tensor<float>&, const Tensor<int>&);
-template Tensor<double> cross_entropy_loss(const Tensor<double>&, const Tensor<int>&);
+template std::shared_ptr<Tensor<float>> cross_entropy_loss(const std::shared_ptr<Tensor<float>>&,
+                                                           const std::shared_ptr<Tensor<int>>&);
+template std::shared_ptr<Tensor<double>> cross_entropy_loss(const std::shared_ptr<Tensor<double>>&,
+                                                            const std::shared_ptr<Tensor<int>>&);
 
 }  // namespace AG

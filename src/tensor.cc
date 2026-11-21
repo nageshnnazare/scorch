@@ -65,60 +65,60 @@ const TensorView<const T> Tensor<T>::operator[](std::size_t i) const {
 // -----------------------------------------------------------------------------
 
 template <TensorScalar T>
-Tensor<T> Tensor<T>::full(Shape shape, T fill_value, bool requires_grad) {
-  Tensor<T> t;
-  t.shape = std::move(shape);
-  t.data.assign(numel(t.shape), fill_value);
-  t.requires_grad = requires_grad;
+std::shared_ptr<Tensor<T>> Tensor<T>::full(Shape shape, T fill_value, bool requires_grad) {
+  auto t = std::make_shared<Tensor<T>>();
+  t->shape = std::move(shape);
+  t->data.assign(numel(t->shape), fill_value);
+  t->requires_grad = requires_grad;
   if (requires_grad) {
-    t.grad.assign(t.data.size(), 0.f);
+    t->grad.assign(t->data.size(), 0.f);
   }
   return t;
 }
 
 template <TensorScalar T>
-Tensor<T> Tensor<T>::zeros(Shape shape, bool requires_grad) {
+std::shared_ptr<Tensor<T>> Tensor<T>::zeros(Shape shape, bool requires_grad) {
   return full(std::move(shape), T(0), requires_grad);
 }
 
 template <TensorScalar T>
-Tensor<T> Tensor<T>::ones(Shape shape, bool requires_grad) {
+std::shared_ptr<Tensor<T>> Tensor<T>::ones(Shape shape, bool requires_grad) {
   return full(std::move(shape), T(1), requires_grad);
 }
 
 template <TensorScalar T>
-Tensor<T> Tensor<T>::rand(Shape shape, bool requires_grad) {
-  Tensor<T> t;
-  t.shape = std::move(shape);
-  t.data.resize(numel(t.shape));
-  t.requires_grad = requires_grad;
+std::shared_ptr<Tensor<T>> Tensor<T>::rand(Shape shape, bool requires_grad) {
+  auto t = std::make_shared<Tensor<T>>();
+  t->shape = std::move(shape);
+  t->data.resize(numel(t->shape));
+  t->requires_grad = requires_grad;
   if (requires_grad) {
-    t.grad.assign(t.data.size(), 0.f);
+    t->grad.assign(t->data.size(), 0.f);
   }
 
   // Thread-local pseudo-random number generator for uniform distribution in [0, 1)
   thread_local std::mt19937 rng{std::random_device{}()};
   std::uniform_real_distribution<double> dist(0.0, 1.0);
 
-  for (auto& v : t.data) v = static_cast<T>(dist(rng));
+  for (auto& v : t->data) v = static_cast<T>(dist(rng));
 
   return t;
 }
 
 template <TensorScalar T>
-Tensor<T> Tensor<T>::from(Shape shape, std::vector<T> data, bool requires_grad) {
+std::shared_ptr<Tensor<T>> Tensor<T>::from(Shape shape, std::vector<T> data, bool requires_grad) {
   const std::size_t n = numel(shape);
   if (data.size() != n) {
     throw std::invalid_argument("AG::Tensor::from — data size (" + std::to_string(data.size()) +
                                 ") does not match shape numel (" + std::to_string(n) + ")");
   }
 
-  Tensor<T> t;
-  t.shape = std::move(shape);
-  t.data = std::move(data);
-  t.requires_grad = requires_grad;
+  auto t = std::make_shared<Tensor<T>>();
+  t->shape = std::move(shape);
+  t->data = std::move(data);
+  t->requires_grad = requires_grad;
   if (requires_grad) {
-    t.grad.assign(t.data.size(), 0.f);
+    t->grad.assign(t->data.size(), 0.f);
   }
   return t;
 }

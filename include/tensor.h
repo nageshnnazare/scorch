@@ -83,7 +83,8 @@ concept TensorScalar =
 using Shape = std::vector<std::size_t>;
 
 /**
- * @brief Lightweight proxy view for chained multidimensional subscript indexing (e.g., `t[i][j]`).
+ * @brief Lightweight proxy view for chained multidimensional subscript indexing (e.g.,
+ * `(*t)[i][j]`).
  *
  * Each bracket operation steps forward through the dimension hierarchy, tracking
  * cumulative linear memory offset until the final scalar element is reached.
@@ -156,94 +157,100 @@ std::size_t flatid(const Shape& shape, const std::vector<std::size_t>& coords);
  */
 void* get_current_backward_tensor();
 
-// Forward declarations of differentiable tensor operations constrained by TensorScalar
+// Forward declarations of differentiable tensor operations returning shared_ptr
 template <TensorScalar T>
 struct Tensor;
 
 // --- Arithmetic ---
 template <TensorScalar T>
-Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 template <TensorScalar T>
-Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> sub(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 template <TensorScalar T>
-Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> mul(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 template <TensorScalar T>
-Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> div(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 template <TensorScalar T>
-Tensor<T> neg(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> neg(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> pow(const Tensor<T>& x, T exponent);
+std::shared_ptr<Tensor<T>> pow(const std::shared_ptr<Tensor<T>>& x, T exponent);
 template <TensorScalar T>
-Tensor<T> exp(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> exp(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> log(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> log(const std::shared_ptr<Tensor<T>>& x);
 
 // --- Scalar-Tensor ---
 template <TensorScalar T>
-Tensor<T> add_scalar(const Tensor<T>& x, T scalar);
+std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar);
 template <TensorScalar T>
-Tensor<T> mul_scalar(const Tensor<T>& x, T scalar);
+std::shared_ptr<Tensor<T>> mul_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar);
 
 // --- Matrix ---
 template <TensorScalar T>
-Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
+                                  const std::shared_ptr<Tensor<T>>& b);
 
 // --- Activations ---
 template <TensorScalar T>
-Tensor<T> relu(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> leaky_relu(const Tensor<T>& x, T alpha);
+std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alpha);
 template <TensorScalar T>
-Tensor<T> sigmoid(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> tanh_op(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> softmax(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 // --- Shape / View ---
 template <TensorScalar T>
-Tensor<T> transpose(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> reshape(const Tensor<T>& x, Shape new_shape);
+std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape);
 template <TensorScalar T>
-Tensor<T> flatten(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> flatten(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> squeeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 template <TensorScalar T>
-Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> unsqueeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim);
+std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& tensors,
+                               std::size_t dim);
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
-template <TensorScalar T>
-Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_t dim);
+std::shared_ptr<Tensor<T>> cat(std::initializer_list<std::shared_ptr<Tensor<T>>> tensors,
+                               std::size_t dim);
 
 // --- Reductions ---
 template <TensorScalar T>
-Tensor<T> reduce(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> mean(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> mean(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> max(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x);
 template <TensorScalar T>
-Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 // --- Loss Functions ---
 template <TensorScalar T>
-Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target);
+std::shared_ptr<Tensor<T>> mse_loss(const std::shared_ptr<Tensor<T>>& pred,
+                                    const std::shared_ptr<Tensor<T>>& target);
 template <TensorScalar T>
-Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets);
+std::shared_ptr<Tensor<T>> cross_entropy_loss(const std::shared_ptr<Tensor<T>>& logits,
+                                              const std::shared_ptr<Tensor<int>>& targets);
 
 /**
  * @brief N-dimensional dense array container with autograd backpropagation support.
  *
- * Supports multi-dimensional subscripting, initialization factories, gradient storage,
- * and computation graph dependency recording for automatic differentiation.
+ * Inherits from std::enable_shared_from_this to allow shared ownership across the DAG.
  *
  * @tparam T Underlying scalar type (must satisfy TensorScalar: float, double, or int).
  */
 template <TensorScalar T>
-struct Tensor {
+struct Tensor : public std::enable_shared_from_this<Tensor<T>> {
   Shape shape;          ///< Dimensions of the tensor.
   std::vector<T> data;  ///< Contiguous row-major storage for tensor values.
   std::string op_name;  ///< Name of operation that created this tensor (for graph visualization).
@@ -259,100 +266,111 @@ struct Tensor {
 
   // Arithmetic
   template <TensorScalar U>
-  friend Tensor<U> add(const Tensor<U>& a, const Tensor<U>& b);
+  friend std::shared_ptr<Tensor<U>> add(const std::shared_ptr<Tensor<U>>& a,
+                                        const std::shared_ptr<Tensor<U>>& b);
   template <TensorScalar U>
-  friend Tensor<U> sub(const Tensor<U>& a, const Tensor<U>& b);
+  friend std::shared_ptr<Tensor<U>> sub(const std::shared_ptr<Tensor<U>>& a,
+                                        const std::shared_ptr<Tensor<U>>& b);
   template <TensorScalar U>
-  friend Tensor<U> mul(const Tensor<U>& a, const Tensor<U>& b);
+  friend std::shared_ptr<Tensor<U>> mul(const std::shared_ptr<Tensor<U>>& a,
+                                        const std::shared_ptr<Tensor<U>>& b);
   template <TensorScalar U>
-  friend Tensor<U> div(const Tensor<U>& a, const Tensor<U>& b);
+  friend std::shared_ptr<Tensor<U>> div(const std::shared_ptr<Tensor<U>>& a,
+                                        const std::shared_ptr<Tensor<U>>& b);
   template <TensorScalar U>
-  friend Tensor<U> neg(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> neg(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> pow(const Tensor<U>& x, U exponent);
+  friend std::shared_ptr<Tensor<U>> pow(const std::shared_ptr<Tensor<U>>& x, U exponent);
   template <TensorScalar U>
-  friend Tensor<U> exp(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> exp(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> log(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> log(const std::shared_ptr<Tensor<U>>& x);
 
   // Scalar-Tensor
   template <TensorScalar U>
-  friend Tensor<U> add_scalar(const Tensor<U>& x, U scalar);
+  friend std::shared_ptr<Tensor<U>> add_scalar(const std::shared_ptr<Tensor<U>>& x, U scalar);
   template <TensorScalar U>
-  friend Tensor<U> mul_scalar(const Tensor<U>& x, U scalar);
+  friend std::shared_ptr<Tensor<U>> mul_scalar(const std::shared_ptr<Tensor<U>>& x, U scalar);
 
   // Matrix
   template <TensorScalar U>
-  friend Tensor<U> matmul(const Tensor<U>& a, const Tensor<U>& b);
+  friend std::shared_ptr<Tensor<U>> matmul(const std::shared_ptr<Tensor<U>>& a,
+                                           const std::shared_ptr<Tensor<U>>& b);
 
   // Activations
   template <TensorScalar U>
-  friend Tensor<U> relu(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> relu(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> leaky_relu(const Tensor<U>& x, U alpha);
+  friend std::shared_ptr<Tensor<U>> leaky_relu(const std::shared_ptr<Tensor<U>>& x, U alpha);
   template <TensorScalar U>
-  friend Tensor<U> sigmoid(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> sigmoid(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> tanh_op(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> tanh_op(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> softmax(const Tensor<U>& x, std::size_t dim);
+  friend std::shared_ptr<Tensor<U>> softmax(const std::shared_ptr<Tensor<U>>& x, std::size_t dim);
 
   // Shape / View
   template <TensorScalar U>
-  friend Tensor<U> transpose(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> transpose(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> reshape(const Tensor<U>& x, Shape new_shape);
+  friend std::shared_ptr<Tensor<U>> reshape(const std::shared_ptr<Tensor<U>>& x, Shape new_shape);
   template <TensorScalar U>
-  friend Tensor<U> flatten(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> flatten(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> squeeze(const Tensor<U>& x, std::size_t dim);
+  friend std::shared_ptr<Tensor<U>> squeeze(const std::shared_ptr<Tensor<U>>& x, std::size_t dim);
   template <TensorScalar U>
-  friend Tensor<U> unsqueeze(const Tensor<U>& x, std::size_t dim);
+  friend std::shared_ptr<Tensor<U>> unsqueeze(const std::shared_ptr<Tensor<U>>& x, std::size_t dim);
   template <TensorScalar U>
-  friend Tensor<U> cat(const std::vector<const Tensor<U>*>& tensors, std::size_t dim);
-  template <TensorScalar U>
-  friend Tensor<U> cat(const std::vector<Tensor<U>>& tensors, std::size_t dim);
+  friend std::shared_ptr<Tensor<U>> cat(const std::vector<std::shared_ptr<Tensor<U>>>& tensors,
+                                        std::size_t dim);
 
   // Reductions
   template <TensorScalar U>
-  friend Tensor<U> reduce(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> reduce(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> mean(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> mean(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> max(const Tensor<U>& x);
+  friend std::shared_ptr<Tensor<U>> max(const std::shared_ptr<Tensor<U>>& x);
   template <TensorScalar U>
-  friend Tensor<U> sum_dim(const Tensor<U>& x, std::size_t dim);
+  friend std::shared_ptr<Tensor<U>> sum_dim(const std::shared_ptr<Tensor<U>>& x, std::size_t dim);
 
   // Loss Functions
   template <TensorScalar U>
-  friend Tensor<U> mse_loss(const Tensor<U>& pred, const Tensor<U>& target);
+  friend std::shared_ptr<Tensor<U>> mse_loss(const std::shared_ptr<Tensor<U>>& pred,
+                                             const std::shared_ptr<Tensor<U>>& target);
   template <TensorScalar U>
-  friend Tensor<U> cross_entropy_loss(const Tensor<U>& logits, const Tensor<int>& targets);
+  friend std::shared_ptr<Tensor<U>> cross_entropy_loss(const std::shared_ptr<Tensor<U>>& logits,
+                                                       const std::shared_ptr<Tensor<int>>& targets);
 
   // ---------------------------------------------------------------------------
-  // Operator Overloads
+  // Member Operator Overloads (dispatched via shared_from_this)
   // ---------------------------------------------------------------------------
 
-  /** @brief Element-wise addition: out = a + b. */
-  Tensor operator+(const Tensor& other) const { return add(*this, other); }
+  std::shared_ptr<Tensor> operator+(const std::shared_ptr<Tensor>& other) {
+    return add(this->shared_from_this(), other);
+  }
 
-  /** @brief Element-wise subtraction: out = a - b. */
-  Tensor operator-(const Tensor& other) const { return sub(*this, other); }
+  std::shared_ptr<Tensor> operator-(const std::shared_ptr<Tensor>& other) {
+    return sub(this->shared_from_this(), other);
+  }
 
-  /** @brief Element-wise multiplication: out = a * b. */
-  Tensor operator*(const Tensor& other) const { return mul(*this, other); }
+  std::shared_ptr<Tensor> operator*(const std::shared_ptr<Tensor>& other) {
+    return mul(this->shared_from_this(), other);
+  }
 
-  /** @brief Element-wise division: out = a / b. */
-  Tensor operator/(const Tensor& other) const { return div(*this, other); }
+  std::shared_ptr<Tensor> operator/(const std::shared_ptr<Tensor>& other) {
+    return div(this->shared_from_this(), other);
+  }
 
-  /** @brief Unary negation: out = -x. */
-  Tensor operator-() const { return neg(*this); }
+  std::shared_ptr<Tensor> operator-() { return neg(this->shared_from_this()); }
 
-  /** @brief Add scalar to all elements: out = x + s. */
-  Tensor operator+(T scalar) const { return add_scalar(*this, scalar); }
+  std::shared_ptr<Tensor> operator+(T scalar) {
+    return add_scalar(this->shared_from_this(), scalar);
+  }
 
-  /** @brief Multiply all elements by scalar: out = x * s. */
-  Tensor operator*(T scalar) const { return mul_scalar(*this, scalar); }
+  std::shared_ptr<Tensor> operator*(T scalar) {
+    return mul_scalar(this->shared_from_this(), scalar);
+  }
 
   // ---------------------------------------------------------------------------
   // Subscript Operators
@@ -373,14 +391,15 @@ struct Tensor {
   const TensorView<const T> operator[](std::size_t i) const;
 
   // ---------------------------------------------------------------------------
-  // Factory Methods
+  // Factory Methods (Returning std::shared_ptr<Tensor<T>>)
   // ---------------------------------------------------------------------------
 
-  static Tensor<T> full(Shape shape, T fill_value, bool requires_grad = false);
-  static Tensor<T> zeros(Shape shape, bool requires_grad = false);
-  static Tensor<T> ones(Shape shape, bool requires_grad = false);
-  static Tensor<T> rand(Shape shape, bool requires_grad = false);
-  static Tensor<T> from(Shape shape, std::vector<T> data, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> full(Shape shape, T fill_value, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> zeros(Shape shape, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> ones(Shape shape, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> rand(Shape shape, bool requires_grad = false);
+  static std::shared_ptr<Tensor<T>> from(Shape shape, std::vector<T> data,
+                                         bool requires_grad = false);
 
   // ---------------------------------------------------------------------------
   // Autograd
@@ -398,6 +417,59 @@ struct Tensor {
  private:
   void print_dim(int dim, std::size_t offset, const char* base_indent) const;
 };
+
+// -----------------------------------------------------------------------------
+// Free Operator Overloads on std::shared_ptr<Tensor<T>>
+// -----------------------------------------------------------------------------
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator+(const std::shared_ptr<Tensor<T>>& a,
+                                            const std::shared_ptr<Tensor<T>>& b) {
+  return add(a, b);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator-(const std::shared_ptr<Tensor<T>>& a,
+                                            const std::shared_ptr<Tensor<T>>& b) {
+  return sub(a, b);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator*(const std::shared_ptr<Tensor<T>>& a,
+                                            const std::shared_ptr<Tensor<T>>& b) {
+  return mul(a, b);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator/(const std::shared_ptr<Tensor<T>>& a,
+                                            const std::shared_ptr<Tensor<T>>& b) {
+  return div(a, b);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator-(const std::shared_ptr<Tensor<T>>& a) {
+  return neg(a);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator+(const std::shared_ptr<Tensor<T>>& a, T scalar) {
+  return add_scalar(a, scalar);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator+(T scalar, const std::shared_ptr<Tensor<T>>& a) {
+  return add_scalar(a, scalar);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator*(const std::shared_ptr<Tensor<T>>& a, T scalar) {
+  return mul_scalar(a, scalar);
+}
+
+template <TensorScalar T>
+inline std::shared_ptr<Tensor<T>> operator*(T scalar, const std::shared_ptr<Tensor<T>>& a) {
+  return mul_scalar(a, scalar);
+}
 
 }  // namespace AG
 

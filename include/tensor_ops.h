@@ -4,13 +4,15 @@
 /**
  * @file tensor_ops.h
  * @brief Differentiable arithmetic, matrix, activation, reduction, shape, and loss
- *        operations for AG::Tensor.
+ *        operations for AG::Tensor returning std::shared_ptr<Tensor<T>>.
  *
  * Implements forward computation and automatic reverse-mode gradient closures.
  * Type-constrained by C++20 concept AG::TensorScalar (float, double, int).
  */
 
 #include <initializer_list>
+#include <memory>
+#include <vector>
 
 #include "tensor.h"
 
@@ -26,7 +28,8 @@ namespace AG {
  * Gradient:  dL/da += dL/dout,  dL/db += dL/dout
  */
 template <TensorScalar T>
-Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> add(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 
 /**
  * @brief Element-wise subtraction: out = a - b.
@@ -34,7 +37,8 @@ Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b);
  * Gradient:  dL/da += dL/dout,  dL/db -= dL/dout
  */
 template <TensorScalar T>
-Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> sub(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 
 /**
  * @brief Element-wise multiplication (Hadamard product): out = a * b.
@@ -42,7 +46,8 @@ Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b);
  * Gradient:  dL/da += dL/dout * b,  dL/db += dL/dout * a
  */
 template <TensorScalar T>
-Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> mul(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 
 /**
  * @brief Element-wise division: out = a / b.
@@ -50,7 +55,8 @@ Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b);
  * Gradient:  dL/da += dL/dout / b,  dL/db += -dL/dout * a / b²
  */
 template <TensorScalar T>
-Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> div(const std::shared_ptr<Tensor<T>>& a,
+                               const std::shared_ptr<Tensor<T>>& b);
 
 /**
  * @brief Element-wise negation: out = -x.
@@ -58,7 +64,7 @@ Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b);
  * Gradient:  dL/dx += -dL/dout
  */
 template <TensorScalar T>
-Tensor<T> neg(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> neg(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Element-wise power: out[i] = x[i]^exponent.
@@ -66,7 +72,7 @@ Tensor<T> neg(const Tensor<T>& x);
  * Gradient:  dL/dx += dL/dout * exponent * x^(exponent-1)
  */
 template <TensorScalar T>
-Tensor<T> pow(const Tensor<T>& x, T exponent);
+std::shared_ptr<Tensor<T>> pow(const std::shared_ptr<Tensor<T>>& x, T exponent);
 
 /**
  * @brief Element-wise exponential: out = exp(x).
@@ -74,7 +80,7 @@ Tensor<T> pow(const Tensor<T>& x, T exponent);
  * Gradient:  dL/dx += dL/dout * exp(x)
  */
 template <TensorScalar T>
-Tensor<T> exp(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> exp(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Element-wise natural logarithm: out = ln(x).
@@ -82,7 +88,7 @@ Tensor<T> exp(const Tensor<T>& x);
  * Gradient:  dL/dx += dL/dout / x
  */
 template <TensorScalar T>
-Tensor<T> log(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> log(const std::shared_ptr<Tensor<T>>& x);
 
 // =============================================================================
 // Scalar-Tensor Operations
@@ -94,7 +100,7 @@ Tensor<T> log(const Tensor<T>& x);
  * Gradient:  dL/dx += dL/dout  (scalar has no gradient)
  */
 template <TensorScalar T>
-Tensor<T> add_scalar(const Tensor<T>& x, T scalar);
+std::shared_ptr<Tensor<T>> add_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar);
 
 /**
  * @brief Multiply every element by a scalar: out[i] = x[i] * scalar.
@@ -102,7 +108,7 @@ Tensor<T> add_scalar(const Tensor<T>& x, T scalar);
  * Gradient:  dL/dx += dL/dout * scalar
  */
 template <TensorScalar T>
-Tensor<T> mul_scalar(const Tensor<T>& x, T scalar);
+std::shared_ptr<Tensor<T>> mul_scalar(const std::shared_ptr<Tensor<T>>& x, T scalar);
 
 // =============================================================================
 // Matrix Operations
@@ -116,7 +122,8 @@ Tensor<T> mul_scalar(const Tensor<T>& x, T scalar);
  * Gradient:  dL/da += dL/dout @ b^T,  dL/db += a^T @ dL/dout
  */
 template <TensorScalar T>
-Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b);
+std::shared_ptr<Tensor<T>> matmul(const std::shared_ptr<Tensor<T>>& a,
+                                  const std::shared_ptr<Tensor<T>>& b);
 
 // =============================================================================
 // Activation Functions
@@ -128,7 +135,7 @@ Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b);
  * Gradient:  dL/dx += (x > 0) ? dL/dout : 0
  */
 template <TensorScalar T>
-Tensor<T> relu(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> relu(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Element-wise Leaky ReLU: out = (x > 0) ? x : alpha * x.
@@ -136,7 +143,7 @@ Tensor<T> relu(const Tensor<T>& x);
  * Gradient:  dL/dx += (x > 0) ? dL/dout : alpha * dL/dout
  */
 template <TensorScalar T>
-Tensor<T> leaky_relu(const Tensor<T>& x, T alpha);
+std::shared_ptr<Tensor<T>> leaky_relu(const std::shared_ptr<Tensor<T>>& x, T alpha);
 
 /**
  * @brief Element-wise sigmoid activation: out = 1 / (1 + exp(-x)).
@@ -144,17 +151,17 @@ Tensor<T> leaky_relu(const Tensor<T>& x, T alpha);
  * Gradient:  dL/dx += dL/dout * σ(x) * (1 - σ(x))
  */
 template <TensorScalar T>
-Tensor<T> sigmoid(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Element-wise hyperbolic tangent activation: out = tanh(x).
  *
- * Gradient:  dL/dx += dL/dout * (1 - tanh^2(x))
+ * Gradient:  dL/dx += dL/dout * (1 - tanh²(x))
  *
  * Named tanh_op to avoid conflict with std::tanh.
  */
 template <TensorScalar T>
-Tensor<T> tanh_op(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Softmax along a given dimension of a rank-2 tensor.
@@ -164,7 +171,7 @@ Tensor<T> tanh_op(const Tensor<T>& x);
  * Gradient:  dL/dx_i += s_i * (dL/ds_i - sum_j(dL/ds_j * s_j))
  */
 template <TensorScalar T>
-Tensor<T> softmax(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 // =============================================================================
 // Shape / View Operations
@@ -176,7 +183,7 @@ Tensor<T> softmax(const Tensor<T>& x, std::size_t dim);
  * Gradient:  dL/dx += (dL/dout)^T
  */
 template <TensorScalar T>
-Tensor<T> transpose(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> transpose(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Reshape tensor to new_shape (must have same numel).
@@ -184,7 +191,7 @@ Tensor<T> transpose(const Tensor<T>& x);
  * Gradient:  dL/dx += reshape(dL/dout, original_shape)
  */
 template <TensorScalar T>
-Tensor<T> reshape(const Tensor<T>& x, Shape new_shape);
+std::shared_ptr<Tensor<T>> reshape(const std::shared_ptr<Tensor<T>>& x, Shape new_shape);
 
 /**
  * @brief Flatten tensor to 1D: out.shape = {numel(x)}.
@@ -192,7 +199,7 @@ Tensor<T> reshape(const Tensor<T>& x, Shape new_shape);
  * Gradient:  dL/dx += reshape(dL/dout, original_shape)
  */
 template <TensorScalar T>
-Tensor<T> flatten(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> flatten(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Remove a dimension of size 1 at position dim.
@@ -202,7 +209,7 @@ Tensor<T> flatten(const Tensor<T>& x);
  * @throws std::invalid_argument if shape[dim] != 1.
  */
 template <TensorScalar T>
-Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> squeeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 /**
  * @brief Insert a dimension of size 1 at position dim.
@@ -210,7 +217,7 @@ Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
  * Gradient:  dL/dx += squeeze(dL/dout, dim)
  */
 template <TensorScalar T>
-Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> unsqueeze(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 /**
  * @brief Concatenate tensors along a given dimension.
@@ -220,25 +227,16 @@ Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
  * Gradient:  dL/dx_k += slice of dL/dout corresponding to tensor k
  */
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim);
+std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& tensors,
+                               std::size_t dim);
 
 /**
- * @brief Concatenate tensors provided via std::vector of values.
+ * @brief Concatenate tensors provided via braced initializer list of shared_ptr.
  */
 template <TensorScalar T>
-inline Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
-  std::vector<const Tensor<T>*> ptrs;
-  ptrs.reserve(tensors.size());
-  for (const auto& t : tensors) ptrs.push_back(&t);
-  return cat(ptrs, dim);
-}
-
-/**
- * @brief Concatenate tensors provided via pointer initializer list (e.g. {&a, &b}).
- */
-template <TensorScalar T>
-inline Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_t dim) {
-  return cat(std::vector<const Tensor<T>*>(tensors.begin(), tensors.end()), dim);
+inline std::shared_ptr<Tensor<T>> cat(std::initializer_list<std::shared_ptr<Tensor<T>>> tensors,
+                                      std::size_t dim) {
+  return cat(std::vector<std::shared_ptr<Tensor<T>>>(tensors.begin(), tensors.end()), dim);
 }
 
 // =============================================================================
@@ -251,7 +249,7 @@ inline Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_
  * Gradient:  dL/dx_i += dL/dout  (broadcast)
  */
 template <TensorScalar T>
-Tensor<T> reduce(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> reduce(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Global mean reduction: out = mean(x), shape {1}.
@@ -259,7 +257,7 @@ Tensor<T> reduce(const Tensor<T>& x);
  * Gradient:  dL/dx_i += dL/dout / numel(x)
  */
 template <TensorScalar T>
-Tensor<T> mean(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> mean(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Global max reduction: out = max(x), shape {1}.
@@ -267,7 +265,7 @@ Tensor<T> mean(const Tensor<T>& x);
  * Gradient:  dL/dx_i += (x_i == max) ? dL/dout : 0
  */
 template <TensorScalar T>
-Tensor<T> max(const Tensor<T>& x);
+std::shared_ptr<Tensor<T>> max(const std::shared_ptr<Tensor<T>>& x);
 
 /**
  * @brief Sum reduction along a specific dimension (rank-2 tensors).
@@ -278,7 +276,7 @@ Tensor<T> max(const Tensor<T>& x);
  * Gradient:  dL/dx += broadcast dL/dout along reduced dimension.
  */
 template <TensorScalar T>
-Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim);
+std::shared_ptr<Tensor<T>> sum_dim(const std::shared_ptr<Tensor<T>>& x, std::size_t dim);
 
 // =============================================================================
 // Loss Functions
@@ -290,7 +288,8 @@ Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim);
  * Gradient:  dL/dpred += dL/dout * 2 * (pred - target) / numel
  */
 template <TensorScalar T>
-Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target);
+std::shared_ptr<Tensor<T>> mse_loss(const std::shared_ptr<Tensor<T>>& pred,
+                                    const std::shared_ptr<Tensor<T>>& target);
 
 /**
  * @brief Cross-Entropy loss with integer class targets.
@@ -303,7 +302,8 @@ Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target);
  * Gradient:  dL/dlogits[i][j] += (softmax[i][j] - 1_{j==t_i}) / N
  */
 template <TensorScalar T>
-Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets);
+std::shared_ptr<Tensor<T>> cross_entropy_loss(const std::shared_ptr<Tensor<T>>& logits,
+                                              const std::shared_ptr<Tensor<int>>& targets);
 
 }  // namespace AG
 
