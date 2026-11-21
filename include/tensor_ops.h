@@ -3,11 +3,10 @@
 
 /**
  * @file tensor_ops.h
- * @brief Differentiable arithmetic, matrix, and reduction operations for AG::Tensor.
+ * @brief Differentiable arithmetic, matrix, activation, reduction, shape, and loss
+ *        operations for AG::Tensor.
  *
- * Implements forward computation and automatic reverse-mode gradient closures for
- * element-wise addition, element-wise multiplication, matrix multiplication,
- * rectified linear unit (ReLU), 2D transposition, and global summation reduction.
+ * Implements forward computation and automatic reverse-mode gradient closures.
  * Type-constrained by C++20 concept AG::TensorScalar (float, double, int).
  */
 
@@ -15,99 +14,275 @@
 
 namespace AG {
 
+// =============================================================================
+// Element-wise Arithmetic Operations
+// =============================================================================
+
 /**
- * @brief Element-wise addition of two identically-shaped tensors: out = a + b.
+ * @brief Element-wise addition: out = a + b.
  *
- * Gradient:
- *   dL/da += dL/dout
- *   dL/db += dL/dout
- *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param a First operand tensor.
- * @param b Second operand tensor.
- * @return Result tensor with shape equal to operand shape.
- * @throws std::invalid_argument if a.shape != b.shape.
+ * Gradient:  dL/da += dL/dout,  dL/db += dL/dout
  */
 template <TensorScalar T>
 Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b);
 
 /**
- * @brief Element-wise multiplication (Hadamard product) of two tensors: out = a * b.
+ * @brief Element-wise subtraction: out = a - b.
  *
- * Gradient:
- *   dL/da += dL/dout * b
- *   dL/db += dL/dout * a
+ * Gradient:  dL/da += dL/dout,  dL/db -= dL/dout
+ */
+template <TensorScalar T>
+Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b);
+
+/**
+ * @brief Element-wise multiplication (Hadamard product): out = a * b.
  *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param a First operand tensor.
- * @param b Second operand tensor.
- * @return Result tensor with shape equal to operand shape.
- * @throws std::invalid_argument if a.shape != b.shape.
+ * Gradient:  dL/da += dL/dout * b,  dL/db += dL/dout * a
  */
 template <TensorScalar T>
 Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b);
 
 /**
+ * @brief Element-wise division: out = a / b.
+ *
+ * Gradient:  dL/da += dL/dout / b,  dL/db += -dL/dout * a / b²
+ */
+template <TensorScalar T>
+Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b);
+
+/**
+ * @brief Element-wise negation: out = -x.
+ *
+ * Gradient:  dL/dx += -dL/dout
+ */
+template <TensorScalar T>
+Tensor<T> neg(const Tensor<T>& x);
+
+/**
+ * @brief Element-wise power: out[i] = x[i]^exponent.
+ *
+ * Gradient:  dL/dx += dL/dout * exponent * x^(exponent-1)
+ */
+template <TensorScalar T>
+Tensor<T> pow(const Tensor<T>& x, T exponent);
+
+/**
+ * @brief Element-wise exponential: out = exp(x).
+ *
+ * Gradient:  dL/dx += dL/dout * exp(x)
+ */
+template <TensorScalar T>
+Tensor<T> exp(const Tensor<T>& x);
+
+/**
+ * @brief Element-wise natural logarithm: out = ln(x).
+ *
+ * Gradient:  dL/dx += dL/dout / x
+ */
+template <TensorScalar T>
+Tensor<T> log(const Tensor<T>& x);
+
+// =============================================================================
+// Scalar-Tensor Operations
+// =============================================================================
+
+/**
+ * @brief Add a scalar to every element: out[i] = x[i] + scalar.
+ *
+ * Gradient:  dL/dx += dL/dout  (scalar has no gradient)
+ */
+template <TensorScalar T>
+Tensor<T> add_scalar(const Tensor<T>& x, T scalar);
+
+/**
+ * @brief Multiply every element by a scalar: out[i] = x[i] * scalar.
+ *
+ * Gradient:  dL/dx += dL/dout * scalar
+ */
+template <TensorScalar T>
+Tensor<T> mul_scalar(const Tensor<T>& x, T scalar);
+
+// =============================================================================
+// Matrix Operations
+// =============================================================================
+
+/**
  * @brief 2D Matrix multiplication: out = a @ b.
  *
- * For input matrices A (M x K) and B (K x N), computes C (M x N).
+ * For A (M×K) and B (K×N), computes C (M×N).
  *
- * Gradient:
- *   dL/da += dL/dout @ b^T
- *   dL/db += a^T @ dL/dout
- *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param a Left operand matrix of shape {M, K}.
- * @param b Right operand matrix of shape {K, N}.
- * @return Result matrix of shape {M, N}.
- * @throws std::invalid_argument if either operand is not rank-2 or if inner dimensions mismatch.
+ * Gradient:  dL/da += dL/dout @ b^T,  dL/db += a^T @ dL/dout
  */
 template <TensorScalar T>
 Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b);
 
+// =============================================================================
+// Activation Functions
+// =============================================================================
+
 /**
- * @brief Element-wise Rectified Linear Unit activation: out = max(0, x).
+ * @brief Element-wise Rectified Linear Unit: out = max(0, x).
  *
- * Gradient:
- *   dL/dx += (x > 0) ? dL/dout : 0
- *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param x Input tensor.
- * @return Result tensor with the same shape as x.
+ * Gradient:  dL/dx += (x > 0) ? dL/dout : 0
  */
 template <TensorScalar T>
 Tensor<T> relu(const Tensor<T>& x);
 
 /**
+ * @brief Element-wise Leaky ReLU: out = (x > 0) ? x : alpha * x.
+ *
+ * Gradient:  dL/dx += (x > 0) ? dL/dout : alpha * dL/dout
+ */
+template <TensorScalar T>
+Tensor<T> leaky_relu(const Tensor<T>& x, T alpha);
+
+/**
+ * @brief Element-wise sigmoid activation: out = 1 / (1 + exp(-x)).
+ *
+ * Gradient:  dL/dx += dL/dout * σ(x) * (1 - σ(x))
+ */
+template <TensorScalar T>
+Tensor<T> sigmoid(const Tensor<T>& x);
+
+/**
+ * @brief Element-wise hyperbolic tangent activation: out = tanh(x).
+ *
+ * Gradient:  dL/dx += dL/dout * (1 - tanh^2(x))
+ *
+ * Named tanh_op to avoid conflict with std::tanh.
+ */
+template <TensorScalar T>
+Tensor<T> tanh_op(const Tensor<T>& x);
+
+/**
+ * @brief Softmax along a given dimension of a rank-2 tensor.
+ *
+ * out[i][j] = exp(x[i][j]) / sum_k(exp(x[i][k]))   (for dim=1)
+ *
+ * Gradient:  dL/dx_i += s_i * (dL/ds_i - sum_j(dL/ds_j * s_j))
+ */
+template <TensorScalar T>
+Tensor<T> softmax(const Tensor<T>& x, std::size_t dim);
+
+// =============================================================================
+// Shape / View Operations
+// =============================================================================
+
+/**
  * @brief Transposes a rank-2 matrix: out = x^T.
  *
- * Swaps dimensions of matrix X (M x N) into shape {N, M}.
- *
- * Gradient:
- *   dL/dx += (dL/dout)^T
- *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param x Input rank-2 tensor of shape {M, N}.
- * @return Transposed tensor of shape {N, M}.
- * @throws std::invalid_argument if x is not rank-2.
+ * Gradient:  dL/dx += (dL/dout)^T
  */
 template <TensorScalar T>
 Tensor<T> transpose(const Tensor<T>& x);
 
 /**
- * @brief Global sum reduction over all elements: out = sum(x).
+ * @brief Reshape tensor to new_shape (must have same numel).
  *
- * Computes a scalar tensor of shape {1} containing the sum of all elements in x.
+ * Gradient:  dL/dx += reshape(dL/dout, original_shape)
+ */
+template <TensorScalar T>
+Tensor<T> reshape(const Tensor<T>& x, Shape new_shape);
+
+/**
+ * @brief Flatten tensor to 1D: out.shape = {numel(x)}.
  *
- * Gradient:
- *   dL/dx_i += dL/dout (broadcast to every element of x)
+ * Gradient:  dL/dx += reshape(dL/dout, original_shape)
+ */
+template <TensorScalar T>
+Tensor<T> flatten(const Tensor<T>& x);
+
+/**
+ * @brief Remove a dimension of size 1 at position dim.
  *
- * @tparam T Underlying scalar type (must satisfy AG::TensorScalar).
- * @param x Input tensor of any rank.
- * @return Scalar tensor of shape {1}.
+ * Gradient:  dL/dx += unsqueeze(dL/dout, dim)
+ *
+ * @throws std::invalid_argument if shape[dim] != 1.
+ */
+template <TensorScalar T>
+Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
+
+/**
+ * @brief Insert a dimension of size 1 at position dim.
+ *
+ * Gradient:  dL/dx += squeeze(dL/dout, dim)
+ */
+template <TensorScalar T>
+Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
+
+/**
+ * @brief Concatenate tensors along a given dimension.
+ *
+ * All tensors must have the same shape except along the concatenation dimension.
+ *
+ * Gradient:  dL/dx_k += slice of dL/dout corresponding to tensor k
+ */
+template <TensorScalar T>
+Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
+
+// =============================================================================
+// Reduction Operations
+// =============================================================================
+
+/**
+ * @brief Global sum reduction: out = sum(x), shape {1}.
+ *
+ * Gradient:  dL/dx_i += dL/dout  (broadcast)
  */
 template <TensorScalar T>
 Tensor<T> reduce(const Tensor<T>& x);
+
+/**
+ * @brief Global mean reduction: out = mean(x), shape {1}.
+ *
+ * Gradient:  dL/dx_i += dL/dout / numel(x)
+ */
+template <TensorScalar T>
+Tensor<T> mean(const Tensor<T>& x);
+
+/**
+ * @brief Global max reduction: out = max(x), shape {1}.
+ *
+ * Gradient:  dL/dx_i += (x_i == max) ? dL/dout : 0
+ */
+template <TensorScalar T>
+Tensor<T> max(const Tensor<T>& x);
+
+/**
+ * @brief Sum reduction along a specific dimension (rank-2 tensors).
+ *
+ * dim=0: out shape {1, cols}, sum down rows.
+ * dim=1: out shape {rows, 1}, sum across columns.
+ *
+ * Gradient:  dL/dx += broadcast dL/dout along reduced dimension.
+ */
+template <TensorScalar T>
+Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim);
+
+// =============================================================================
+// Loss Functions
+// =============================================================================
+
+/**
+ * @brief Mean Squared Error loss: out = mean((pred - target)²), shape {1}.
+ *
+ * Gradient:  dL/dpred += dL/dout * 2 * (pred - target) / numel
+ */
+template <TensorScalar T>
+Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target);
+
+/**
+ * @brief Cross-Entropy loss with integer class targets.
+ *
+ * logits: shape {N, C}  (batch × classes)
+ * targets: shape {N}    (class indices, Tensor<int>)
+ *
+ * loss = mean_i( -logits[i][t_i] + log(sum_j(exp(logits[i][j]))) )
+ *
+ * Gradient:  dL/dlogits[i][j] += (softmax[i][j] - 1_{j==t_i}) / N
+ */
+template <TensorScalar T>
+Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets);
 
 }  // namespace AG
 

@@ -65,6 +65,7 @@ set_target_properties(test_tensor
 # Individual unit tests registered with CTest so each test case reports its own
 # individual status, timing, and pass/fail result in `ninja test` or `ctest`.
 set(TENSOR_TESTS
+  # Core tensor tests
   zeros_shape
   zeros_values
   ones_values
@@ -77,6 +78,7 @@ set(TENSOR_TESTS
   requires_grad_flag
   size_and_elements
   backward_leaf
+  # Original gradient tests
   grad_add
   grad_mul
   grad_matmul
@@ -86,10 +88,45 @@ set(TENSOR_TESTS
   grad_dag_chain
   grad_diamond_graph
   grad_no_grad_operand
+  # Original operator overload tests
   operator_add
   operator_mul
   operator_expression_pipeline
   concept_tensor_scalar
+  # NEW: Arithmetic
+  grad_sub
+  grad_neg
+  grad_div
+  grad_pow
+  grad_exp
+  grad_log
+  # NEW: Scalar-Tensor
+  grad_add_scalar
+  grad_mul_scalar
+  # NEW: Activations
+  grad_sigmoid
+  grad_tanh
+  grad_leaky_relu
+  forward_softmax
+  # NEW: Reductions
+  grad_mean
+  grad_max
+  grad_sum_dim
+  # NEW: Shape / View
+  grad_reshape
+  grad_flatten
+  grad_squeeze
+  grad_unsqueeze
+  grad_cat
+  # NEW: Loss functions
+  grad_mse_loss
+  grad_cross_entropy
+  # NEW: Operator overloads
+  operator_sub
+  operator_neg
+  operator_div
+  operator_add_scalar
+  operator_mul_scalar
 )
 
 foreach(test_name IN LISTS TENSOR_TESTS)

@@ -159,18 +159,75 @@ void* get_current_backward_tensor();
 template <TensorScalar T>
 struct Tensor;
 
+// --- Arithmetic ---
 template <TensorScalar T>
 Tensor<T> add(const Tensor<T>& a, const Tensor<T>& b);
 template <TensorScalar T>
+Tensor<T> sub(const Tensor<T>& a, const Tensor<T>& b);
+template <TensorScalar T>
 Tensor<T> mul(const Tensor<T>& a, const Tensor<T>& b);
 template <TensorScalar T>
+Tensor<T> div(const Tensor<T>& a, const Tensor<T>& b);
+template <TensorScalar T>
+Tensor<T> neg(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> pow(const Tensor<T>& x, T exponent);
+template <TensorScalar T>
+Tensor<T> exp(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> log(const Tensor<T>& x);
+
+// --- Scalar-Tensor ---
+template <TensorScalar T>
+Tensor<T> add_scalar(const Tensor<T>& x, T scalar);
+template <TensorScalar T>
+Tensor<T> mul_scalar(const Tensor<T>& x, T scalar);
+
+// --- Matrix ---
+template <TensorScalar T>
 Tensor<T> matmul(const Tensor<T>& a, const Tensor<T>& b);
+
+// --- Activations ---
 template <TensorScalar T>
 Tensor<T> relu(const Tensor<T>& x);
 template <TensorScalar T>
+Tensor<T> leaky_relu(const Tensor<T>& x, T alpha);
+template <TensorScalar T>
+Tensor<T> sigmoid(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> tanh_op(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> softmax(const Tensor<T>& x, std::size_t dim);
+
+// --- Shape / View ---
+template <TensorScalar T>
 Tensor<T> transpose(const Tensor<T>& x);
 template <TensorScalar T>
+Tensor<T> reshape(const Tensor<T>& x, Shape new_shape);
+template <TensorScalar T>
+Tensor<T> flatten(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
+template <TensorScalar T>
+Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
+template <TensorScalar T>
+Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
+
+// --- Reductions ---
+template <TensorScalar T>
 Tensor<T> reduce(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> mean(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> max(const Tensor<T>& x);
+template <TensorScalar T>
+Tensor<T> sum_dim(const Tensor<T>& x, std::size_t dim);
+
+// --- Loss Functions ---
+template <TensorScalar T>
+Tensor<T> mse_loss(const Tensor<T>& pred, const Tensor<T>& target);
+template <TensorScalar T>
+Tensor<T> cross_entropy_loss(const Tensor<T>& logits, const Tensor<int>& targets);
 
 /**
  * @brief N-dimensional dense array container with autograd backpropagation support.
@@ -194,31 +251,105 @@ struct Tensor {
   // ---------------------------------------------------------------------------
   // Friend Declarations for Differentiable Operations
   // ---------------------------------------------------------------------------
+
+  // Arithmetic
   template <TensorScalar U>
   friend Tensor<U> add(const Tensor<U>& a, const Tensor<U>& b);
   template <TensorScalar U>
+  friend Tensor<U> sub(const Tensor<U>& a, const Tensor<U>& b);
+  template <TensorScalar U>
   friend Tensor<U> mul(const Tensor<U>& a, const Tensor<U>& b);
   template <TensorScalar U>
+  friend Tensor<U> div(const Tensor<U>& a, const Tensor<U>& b);
+  template <TensorScalar U>
+  friend Tensor<U> neg(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> pow(const Tensor<U>& x, U exponent);
+  template <TensorScalar U>
+  friend Tensor<U> exp(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> log(const Tensor<U>& x);
+
+  // Scalar-Tensor
+  template <TensorScalar U>
+  friend Tensor<U> add_scalar(const Tensor<U>& x, U scalar);
+  template <TensorScalar U>
+  friend Tensor<U> mul_scalar(const Tensor<U>& x, U scalar);
+
+  // Matrix
+  template <TensorScalar U>
   friend Tensor<U> matmul(const Tensor<U>& a, const Tensor<U>& b);
+
+  // Activations
   template <TensorScalar U>
   friend Tensor<U> relu(const Tensor<U>& x);
   template <TensorScalar U>
+  friend Tensor<U> leaky_relu(const Tensor<U>& x, U alpha);
+  template <TensorScalar U>
+  friend Tensor<U> sigmoid(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> tanh_op(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> softmax(const Tensor<U>& x, std::size_t dim);
+
+  // Shape / View
+  template <TensorScalar U>
   friend Tensor<U> transpose(const Tensor<U>& x);
   template <TensorScalar U>
+  friend Tensor<U> reshape(const Tensor<U>& x, Shape new_shape);
+  template <TensorScalar U>
+  friend Tensor<U> flatten(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> squeeze(const Tensor<U>& x, std::size_t dim);
+  template <TensorScalar U>
+  friend Tensor<U> unsqueeze(const Tensor<U>& x, std::size_t dim);
+  template <TensorScalar U>
+  friend Tensor<U> cat(const std::vector<Tensor<U>>& tensors, std::size_t dim);
+
+  // Reductions
+  template <TensorScalar U>
   friend Tensor<U> reduce(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> mean(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> max(const Tensor<U>& x);
+  template <TensorScalar U>
+  friend Tensor<U> sum_dim(const Tensor<U>& x, std::size_t dim);
+
+  // Loss Functions
+  template <TensorScalar U>
+  friend Tensor<U> mse_loss(const Tensor<U>& pred, const Tensor<U>& target);
+  template <TensorScalar U>
+  friend Tensor<U> cross_entropy_loss(const Tensor<U>& logits, const Tensor<int>& targets);
 
   // ---------------------------------------------------------------------------
   // Operator Overloads
   // ---------------------------------------------------------------------------
-  /**
-   * @brief Element-wise addition operator: out = a + b.
-   */
+
+  /** @brief Element-wise addition: out = a + b. */
   Tensor operator+(const Tensor& other) const { return add(*this, other); }
 
-  /**
-   * @brief Element-wise multiplication operator: out = a * b.
-   */
+  /** @brief Element-wise subtraction: out = a - b. */
+  Tensor operator-(const Tensor& other) const { return sub(*this, other); }
+
+  /** @brief Element-wise multiplication: out = a * b. */
   Tensor operator*(const Tensor& other) const { return mul(*this, other); }
+
+  /** @brief Element-wise division: out = a / b. */
+  Tensor operator/(const Tensor& other) const { return div(*this, other); }
+
+  /** @brief Unary negation: out = -x. */
+  Tensor operator-() const { return neg(*this); }
+
+  /** @brief Add scalar to all elements: out = x + s. */
+  Tensor operator+(T scalar) const { return add_scalar(*this, scalar); }
+
+  /** @brief Multiply all elements by scalar: out = x * s. */
+  Tensor operator*(T scalar) const { return mul_scalar(*this, scalar); }
+
+  // ---------------------------------------------------------------------------
+  // Subscript Operators
+  // ---------------------------------------------------------------------------
 
   /**
    * @brief Multi-dimensional indexing operator (mutable).
@@ -234,67 +365,30 @@ struct Tensor {
    */
   const TensorView<const T> operator[](std::size_t i) const;
 
-  /**
-   * @brief Creates a tensor filled with a constant scalar value.
-   * @param shape Target dimensions.
-   * @param fill_value Constant value to fill data buffer with.
-   * @param requires_grad Whether gradient tracking is enabled.
-   */
+  // ---------------------------------------------------------------------------
+  // Factory Methods
+  // ---------------------------------------------------------------------------
+
   static Tensor<T> full(Shape shape, T fill_value, bool requires_grad = false);
-
-  /**
-   * @brief Creates a tensor filled with zeros.
-   * @param shape Target dimensions.
-   * @param requires_grad Whether gradient tracking is enabled.
-   */
   static Tensor<T> zeros(Shape shape, bool requires_grad = false);
-
-  /**
-   * @brief Creates a tensor filled with ones.
-   * @param shape Target dimensions.
-   * @param requires_grad Whether gradient tracking is enabled.
-   */
   static Tensor<T> ones(Shape shape, bool requires_grad = false);
-
-  /**
-   * @brief Creates a tensor filled with uniform random values in [0.0, 1.0).
-   * @param shape Target dimensions.
-   * @param requires_grad Whether gradient tracking is enabled.
-   */
   static Tensor<T> rand(Shape shape, bool requires_grad = false);
-
-  /**
-   * @brief Constructs a tensor from an existing shape and data buffer.
-   * @param shape Target dimensions.
-   * @param data Storage vector whose size must equal numel(shape).
-   * @param requires_grad Whether gradient tracking is enabled.
-   * @throws std::invalid_argument if data.size() != numel(shape).
-   */
   static Tensor<T> from(Shape shape, std::vector<T> data, bool requires_grad = false);
 
-  /**
-   * @brief Resets all accumulated gradient values to zero.
-   */
-  void zero_grad();
+  // ---------------------------------------------------------------------------
+  // Autograd
+  // ---------------------------------------------------------------------------
 
-  /**
-   * @brief Computes gradients of the computation graph using reverse-mode autodiff.
-   *
-   * Traverses backward through parent dependencies via topological sort, invoking
-   * each node's `backward_fn` closure to accumulate gradients.
-   */
+  void zero_grad();
   void backward();
 
-  /**
-   * @brief Formats and prints the tensor shape and nested multidimensional contents to stdout.
-   * @param name Optional label to prepend to the output.
-   */
+  // ---------------------------------------------------------------------------
+  // Formatting
+  // ---------------------------------------------------------------------------
+
   void print(const char* name = "") const;
 
  private:
-  /**
-   * @brief Recursive helper to print formatted multi-dimensional bracketed values.
-   */
   void print_dim(int dim, std::size_t offset, const char* base_indent) const;
 };
 
