@@ -241,17 +241,6 @@ inline Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_
   return cat(std::vector<const Tensor<T>*>(tensors.begin(), tensors.end()), dim);
 }
 
-/**
- * @brief Concatenate tensors provided via non-const pointer initializer list (e.g. {&a, &b}).
- */
-template <TensorScalar T>
-inline Tensor<T> cat(std::initializer_list<Tensor<T>*> tensors, std::size_t dim) {
-  std::vector<const Tensor<T>*> ptrs;
-  ptrs.reserve(tensors.size());
-  for (auto* t : tensors) ptrs.push_back(t);
-  return cat(ptrs, dim);
-}
-
 // =============================================================================
 // Reduction Operations
 // =============================================================================

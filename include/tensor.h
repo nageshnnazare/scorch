@@ -217,8 +217,6 @@ template <TensorScalar T>
 Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
 template <TensorScalar T>
 Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_t dim);
-template <TensorScalar T>
-Tensor<T> cat(std::initializer_list<Tensor<T>*> tensors, std::size_t dim);
 
 // --- Reductions ---
 template <TensorScalar T>
