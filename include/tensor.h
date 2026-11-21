@@ -60,6 +60,7 @@
 #include <concepts>
 #include <cstddef>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -211,7 +212,13 @@ Tensor<T> squeeze(const Tensor<T>& x, std::size_t dim);
 template <TensorScalar T>
 Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
 template <TensorScalar T>
+Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim);
+template <TensorScalar T>
 Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
+template <TensorScalar T>
+Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_t dim);
+template <TensorScalar T>
+Tensor<T> cat(std::initializer_list<Tensor<T>*> tensors, std::size_t dim);
 
 // --- Reductions ---
 template <TensorScalar T>
@@ -303,6 +310,8 @@ struct Tensor {
   friend Tensor<U> squeeze(const Tensor<U>& x, std::size_t dim);
   template <TensorScalar U>
   friend Tensor<U> unsqueeze(const Tensor<U>& x, std::size_t dim);
+  template <TensorScalar U>
+  friend Tensor<U> cat(const std::vector<const Tensor<U>*>& tensors, std::size_t dim);
   template <TensorScalar U>
   friend Tensor<U> cat(const std::vector<Tensor<U>>& tensors, std::size_t dim);
 

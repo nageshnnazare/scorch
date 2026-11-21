@@ -268,8 +268,8 @@ Tensor<T> pow(const Tensor<T>& x, T exponent) {
   auto out = make_result<T>(x.shape, rg, "pow", {x_ptr});
 
   for (std::size_t i = 0; i < out.data.size(); ++i) {
-    out.data[i] = static_cast<T>(std::pow(static_cast<double>(x.data[i]),
-                                          static_cast<double>(exponent)));
+    out.data[i] =
+        static_cast<T>(std::pow(static_cast<double>(x.data[i]), static_cast<double>(exponent)));
   }
 
   if (rg) {
@@ -282,8 +282,7 @@ Tensor<T> pow(const Tensor<T>& x, T exponent) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
           float xv = static_cast<float>(x_ptr->data[i]);
           float exp_f = static_cast<float>(exponent);
-          x_ptr->grad[i] +=
-              self->grad[i] * exp_f * static_cast<float>(std::pow(xv, exp_f - 1.f));
+          x_ptr->grad[i] += self->grad[i] * exp_f * static_cast<float>(std::pow(xv, exp_f - 1.f));
         }
       }
     };
@@ -858,25 +857,28 @@ Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim) {
 // =============================================================================
 
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
+Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim) {
   if (tensors.empty()) {
     throw std::invalid_argument("cat: empty tensor list");
   }
-  if (tensors[0].shape.size() != 2) {
+  for (auto* t : tensors) {
+    if (!t) throw std::invalid_argument("cat: null tensor pointer");
+  }
+  if (tensors[0]->shape.size() != 2) {
     throw std::invalid_argument("cat: only rank-2 tensors are supported");
   }
   if (dim > 1) {
     throw std::invalid_argument("cat: dim must be 0 or 1 for rank-2 tensors");
   }
 
-  const auto& ref_shape = tensors[0].shape;
+  const auto& ref_shape = tensors[0]->shape;
   // Validate shapes match except along cat dimension
   for (std::size_t t = 1; t < tensors.size(); ++t) {
-    if (tensors[t].shape.size() != 2) {
+    if (tensors[t]->shape.size() != 2) {
       throw std::invalid_argument("cat: all tensors must be rank-2");
     }
     for (std::size_t d = 0; d < 2; ++d) {
-      if (d != dim && tensors[t].shape[d] != ref_shape[d]) {
+      if (d != dim && tensors[t]->shape[d] != ref_shape[d]) {
         throw std::invalid_argument("cat: shape mismatch on non-cat dimension");
       }
     }
@@ -884,7 +886,7 @@ Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
 
   // Compute output shape
   std::size_t cat_size = 0;
-  for (const auto& t : tensors) cat_size += t.shape[dim];
+  for (auto* t : tensors) cat_size += t->shape[dim];
 
   Shape out_shape = ref_shape;
   out_shape[dim] = cat_size;
@@ -892,9 +894,9 @@ Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
   // Create parent handles
   bool rg = false;
   std::vector<std::shared_ptr<Tensor<T>>> parent_ptrs;
-  for (const auto& t : tensors) {
-    rg = rg || t.requires_grad;
-    parent_ptrs.push_back(make_parent_handle(t));
+  for (auto* t : tensors) {
+    rg = rg || t->requires_grad;
+    parent_ptrs.push_back(make_parent_handle(*t));
   }
 
   auto out = make_result<T>(out_shape, rg, "cat", parent_ptrs);
@@ -903,11 +905,11 @@ Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
   if (dim == 0) {
     // Concatenating rows: just append data sequentially
     std::size_t offset = 0;
-    for (const auto& t : tensors) {
-      for (std::size_t i = 0; i < t.data.size(); ++i) {
-        out.data[offset + i] = t.data[i];
+    for (auto* t : tensors) {
+      for (std::size_t i = 0; i < t->data.size(); ++i) {
+        out.data[offset + i] = t->data[i];
       }
-      offset += t.data.size();
+      offset += t->data.size();
     }
   } else {
     // dim == 1: interleave columns
@@ -915,11 +917,11 @@ Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
     const std::size_t nrows = ref_shape[0];
     for (std::size_t r = 0; r < nrows; ++r) {
       std::size_t col_offset = 0;
-      for (const auto& t : tensors) {
-        for (std::size_t c = 0; c < t.shape[1]; ++c) {
-          out.data[r * out_cols + col_offset + c] = t.data[r * t.shape[1] + c];
+      for (auto* t : tensors) {
+        for (std::size_t c = 0; c < t->shape[1]; ++c) {
+          out.data[r * out_cols + col_offset + c] = t->data[r * t->shape[1] + c];
         }
-        col_offset += t.shape[1];
+        col_offset += t->shape[1];
       }
     }
   }
@@ -927,7 +929,7 @@ Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
   if (rg) {
     // Capture shapes for backward
     std::vector<Shape> input_shapes;
-    for (const auto& t : tensors) input_shapes.push_back(t.shape);
+    for (auto* t : tensors) input_shapes.push_back(t->shape);
 
     out.backward_fn = [parent_ptrs, input_shapes, dim]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
@@ -1382,9 +1384,9 @@ template Tensor<float> unsqueeze(const Tensor<float>&, std::size_t);
 template Tensor<double> unsqueeze(const Tensor<double>&, std::size_t);
 template Tensor<int> unsqueeze(const Tensor<int>&, std::size_t);
 
-template Tensor<float> cat(const std::vector<Tensor<float>>&, std::size_t);
-template Tensor<double> cat(const std::vector<Tensor<double>>&, std::size_t);
-template Tensor<int> cat(const std::vector<Tensor<int>>&, std::size_t);
+template Tensor<float> cat(const std::vector<const Tensor<float>*>&, std::size_t);
+template Tensor<double> cat(const std::vector<const Tensor<double>*>&, std::size_t);
+template Tensor<int> cat(const std::vector<const Tensor<int>*>&, std::size_t);
 
 // --- Reductions ---
 template Tensor<float> reduce(const Tensor<float>&);

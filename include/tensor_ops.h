@@ -10,6 +10,8 @@
  * Type-constrained by C++20 concept AG::TensorScalar (float, double, int).
  */
 
+#include <initializer_list>
+
 #include "tensor.h"
 
 namespace AG {
@@ -218,7 +220,37 @@ Tensor<T> unsqueeze(const Tensor<T>& x, std::size_t dim);
  * Gradient:  dL/dx_k += slice of dL/dout corresponding to tensor k
  */
 template <TensorScalar T>
-Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim);
+Tensor<T> cat(const std::vector<const Tensor<T>*>& tensors, std::size_t dim);
+
+/**
+ * @brief Concatenate tensors provided via std::vector of values.
+ */
+template <TensorScalar T>
+inline Tensor<T> cat(const std::vector<Tensor<T>>& tensors, std::size_t dim) {
+  std::vector<const Tensor<T>*> ptrs;
+  ptrs.reserve(tensors.size());
+  for (const auto& t : tensors) ptrs.push_back(&t);
+  return cat(ptrs, dim);
+}
+
+/**
+ * @brief Concatenate tensors provided via pointer initializer list (e.g. {&a, &b}).
+ */
+template <TensorScalar T>
+inline Tensor<T> cat(std::initializer_list<const Tensor<T>*> tensors, std::size_t dim) {
+  return cat(std::vector<const Tensor<T>*>(tensors.begin(), tensors.end()), dim);
+}
+
+/**
+ * @brief Concatenate tensors provided via non-const pointer initializer list (e.g. {&a, &b}).
+ */
+template <TensorScalar T>
+inline Tensor<T> cat(std::initializer_list<Tensor<T>*> tensors, std::size_t dim) {
+  std::vector<const Tensor<T>*> ptrs;
+  ptrs.reserve(tensors.size());
+  for (auto* t : tensors) ptrs.push_back(t);
+  return cat(ptrs, dim);
+}
 
 // =============================================================================
 // Reduction Operations
