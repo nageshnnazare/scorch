@@ -198,7 +198,7 @@ std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::siz
   }
 
   if (rg) {
-    out->backward_fn = [x, out, dim, outer, dim_size, inner]() {
+    out->backward_fn = [x, out, outer, dim_size, inner]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);

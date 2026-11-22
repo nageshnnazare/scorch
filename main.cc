@@ -8,7 +8,7 @@
 
 #include "scorch.h"
 
-int main(int argc, char* argv[]) {
+int main() {
   std::cout << "=== Part 1: Low-Level Tensor & Autograd Pipeline ===" << std::endl;
   auto w = scorch::ones({2, 3}, /*requires_grad=*/true);
   auto b = scorch::full({2, 3}, 2.f, /*requires_grad=*/true);

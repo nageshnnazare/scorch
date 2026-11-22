@@ -11,6 +11,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Compiler warning flags
+if(MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
+
+# Sanitizer support (-DENABLE_SANITIZER=ON)
+option(ENABLE_SANITIZER "Enable Address and Undefined Behavior sanitizers" OFF)
+if(ENABLE_SANITIZER)
+  if(MSVC)
+    add_compile_options(/fsanitize=address)
+  else()
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+  endif()
+endif()
+
 # ------------------------------------------------------------------------------
 # 1. Core Library (scorch)
 # ------------------------------------------------------------------------------

@@ -173,8 +173,7 @@ std::shared_ptr<Tensor<T>> cat(const std::vector<std::shared_ptr<Tensor<T>>>& te
   }
 
   if (any_rg) {
-    out->backward_fn = [tensors, dim, outer, inner, total_dim_size, out_dim_stride,
-                        out_outer_stride]() {
+    out->backward_fn = [tensors, dim, outer, inner, out_dim_stride, out_outer_stride]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
 
