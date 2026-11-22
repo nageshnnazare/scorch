@@ -102,14 +102,14 @@ std::shared_ptr<Tensor<T>> sigmoid(const std::shared_ptr<Tensor<T>>& x) {
   }
 
   if (rg) {
-    out->backward_fn = [x, out]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          float s = static_cast<float>(out->data[i]);
+          float s = static_cast<float>(self->data[i]);
           x->grad[i] += self->grad[i] * s * (1.f - s);
         }
       }
@@ -135,14 +135,14 @@ std::shared_ptr<Tensor<T>> tanh_op(const std::shared_ptr<Tensor<T>>& x) {
   }
 
   if (rg) {
-    out->backward_fn = [x, out]() {
+    out->backward_fn = [x]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
 
       if (x->requires_grad) {
         for (std::size_t i = 0; i < self->grad.size(); ++i) {
-          float th = static_cast<float>(out->data[i]);
+          float th = static_cast<float>(self->data[i]);
           x->grad[i] += self->grad[i] * (1.f - th * th);
         }
       }
@@ -198,7 +198,7 @@ std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::siz
   }
 
   if (rg) {
-    out->backward_fn = [x, out, outer, dim_size, inner]() {
+    out->backward_fn = [x, outer, dim_size, inner]() {
       auto* self = static_cast<Tensor<T>*>(get_current_backward_tensor());
       if (!self) return;
       detail::ensure_grad(*x);
@@ -209,11 +209,11 @@ std::shared_ptr<Tensor<T>> softmax(const std::shared_ptr<Tensor<T>>& x, std::siz
             float sum_gy = 0.f;
             for (std::size_t d = 0; d < dim_size; ++d) {
               std::size_t idx = o * dim_size * inner + d * inner + inn;
-              sum_gy += self->grad[idx] * static_cast<float>(out->data[idx]);
+              sum_gy += self->grad[idx] * static_cast<float>(self->data[idx]);
             }
             for (std::size_t d = 0; d < dim_size; ++d) {
               std::size_t idx = o * dim_size * inner + d * inner + inn;
-              float y_val = static_cast<float>(out->data[idx]);
+              float y_val = static_cast<float>(self->data[idx]);
               x->grad[idx] += y_val * (self->grad[idx] - sum_gy);
             }
           }
