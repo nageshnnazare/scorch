@@ -32,8 +32,18 @@ jobs:
       - name: Build
         run: ninja -C build
 
-      - name: Run Tests with Sanitizers
+      # LeakSanitizer (detect_leaks) is only supported on Linux.
+      # check_initialization_order / strict_init_order are ASan options supported on both.
+      - name: Run Tests with Sanitizers (Linux)
+        if: runner.os == 'Linux'
         env:
           ASAN_OPTIONS: "detect_leaks=1:check_initialization_order=1:strict_init_order=1"
+          UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run Tests with Sanitizers (macOS)
+        if: runner.os == 'macOS'
+        env:
+          ASAN_OPTIONS: "check_initialization_order=1:strict_init_order=1"
           UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
         run: ctest --test-dir build --output-on-failure
